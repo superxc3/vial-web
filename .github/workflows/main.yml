@@ -9,20 +9,39 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Build
+    # The WASM toolchain (emsdk) and the Qt/CPython/PyQt5 static libs only depend on the pinned
+    # versions and patches, so cache them; a hit turns a ~40 min run into a few minutes.
+    - name: Restore toolchain and dependency cache
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          emsdk
+          deps
+        key: deps-v1-${{ runner.os }}-${{ hashFiles('version.sh', 'fetch-emsdk.sh', 'fetch-deps.sh', 'build-deps.sh', 'prune-deps.sh', 'patches/**') }}
+
+    - name: Build toolchain and dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        git clone -b xcmkb https://github.com/superxc3/vial-gui.git
-        git clone https://github.com/vial-kb/via-keymap-precompiled.git
         ./fetch-emsdk.sh
         ./fetch-deps.sh
         ./build-deps.sh
+
+    - name: Build vial-web
+      run: |
+        git clone -b xcmkb https://github.com/superxc3/vial-gui.git
+        git clone https://github.com/vial-kb/via-keymap-precompiled.git
         cd src
         ./build.sh
 
-    # Sizes of the toolchain/deps trees, to decide what is worth caching between runs
-    - name: Report build tree sizes
-      if: always()
-      run: du -sh emsdk sources deps deps/* src/build 2>/dev/null || true
+    # Shrink deps/ to what build.sh actually links against before the post-job cache save.
+    # Never fails the run: worst case the cache entry is just larger.
+    - name: Prune dependencies for caching
+      if: steps.cache.outputs.cache-hit != 'true'
+      continue-on-error: true
+      run: |
+        du -sh emsdk sources deps deps/* 2>/dev/null || true
+        ./prune-deps.sh
 
     - uses: actions/upload-artifact@v4
       with:

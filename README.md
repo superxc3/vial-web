@@ -21,6 +21,8 @@ cd src
 ./build.sh
 ```
 
+CI caches `emsdk/` and a `prune-deps.sh`-trimmed `deps/` so only the first run pays the ~40 min toolchain build.
+
 Output lands in `src/build`. It uses a pthread build, so the page must be served
 cross-origin isolated (COOP/COEP headers); `coi-serviceworker.js` handles that on hosts
 such as GitHub Pages that cannot set headers. WebHID requires Chrome/Chromium/Edge.
