@@ -30,12 +30,12 @@ jobs:
         path: src/build
 
     - uses: actions/upload-pages-artifact@v3
-      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      if: github.ref == 'refs/heads/xcmkb' && github.event_name != 'pull_request'
       with:
         path: src/build
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/xcmkb' && github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-22.04
     permissions:

@@ -5,12 +5,12 @@ Web build of the [superxc3/vial-gui](https://github.com/superxc3/vial-gui/tree/x
 [vial-kb/vial-web](https://github.com/vial-kb/vial-web).
 
 The same vial-gui Python source is compiled to WebAssembly (CPython 3.11 + PyQt5 via Emscripten);
-there is no separate JavaScript port. CI builds on every push and deploys `main` to GitHub Pages.
+there is no separate JavaScript port. CI builds on every push and deploys `xcmkb` to GitHub Pages; `main` mirrors upstream.
 
 ## Building
 
 ```
-git clone https://github.com/superxc3/vial-web.git
+git clone -b xcmkb https://github.com/superxc3/vial-web.git
 cd vial-web
 git clone -b xcmkb https://github.com/superxc3/vial-gui.git
 git clone https://github.com/vial-kb/via-keymap-precompiled.git
