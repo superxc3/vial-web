@@ -77,7 +77,11 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
       took 1m 31s on a cache hit (vs 40 min)
 
 ### Later / optional
-- [ ] Branding in `index.html` (title, start button, gitbook link)
+- [x] Fork notice: start screen `#notice` + About box (`vial-gui@feff418`) say it is a customised
+      XCMKB build, not affiliated with the Vial project, with upstream/source/license links;
+      tab title "Vial Web (XCMKB)"
+- [x] Links inside the Qt UI work: Qt's openUrl is `window.open()` in the worker, which upstream
+      stubbed as a no-op; `worker.js` now posts `open_url` and the page opens a new tab
 - [ ] `repository_dispatch` from vial-gui CI so a push to `vial-gui@xcmkb` rebuilds vial-web
 - [ ] Periodic `git merge upstream/main` into `xcmkb` on both repos
 
@@ -100,3 +104,5 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - 2026-09-15 — Colour pickers fixed (`exec_()` → non-blocking), persistence confirmed by user,
   cache hit brings CI to ~1.5 min. Open: `.vil` save into Documents fails in the Windows dialog
   while Desktop works; added a suggested filename, awaiting a vial.rocks comparison.
+- 2026-09-15 — Fork notice added (start screen + About), About-box links made to work on web
+  (`open_url` bridge). User plans to share https://superxc3.github.io/vial-web/ with clients.
