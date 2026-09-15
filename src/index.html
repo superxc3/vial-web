@@ -1,6 +1,9 @@
 <head>
+    <!-- GitHub Pages cannot send COOP/COEP headers; this service worker injects them so
+         SharedArrayBuffer (needed by the pthread build) is available. Must be the first script. -->
+    <script src="coi-serviceworker.js"></script>
     <title>Vial Web</title>
-    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="icon.png" type="image/png">
 <style>
 body {
     font-family: sans-serif;
