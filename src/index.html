@@ -268,6 +268,27 @@ body {
     };
 </script>
 
-<script src="main-@UNIQVER@.js"></script>
+<script>
+    // The pthread build needs SharedArrayBuffer, which needs cross-origin isolation. On the very first
+    // visit the COOP/COEP service worker is not yet controlling the page and coi-serviceworker reloads
+    // once it is, so only start the runtime when isolation is already in place; otherwise the runtime
+    // would die with "SharedArrayBuffer is not defined" before the reload happens.
+    if (typeof SharedArrayBuffer === "function") {
+        var runtime = document.createElement("script");
+        runtime.src = "main-@UNIQVER@.js";
+        document.body.appendChild(runtime);
+    } else if (window.isSecureContext && "serviceWorker" in navigator) {
+        document.getElementById("startup_btn").value = "Preparing, page will reload...";
+        // If the service worker never takes control (blocked, private mode) say so instead of hanging
+        setTimeout(function() {
+            if (!navigator.serviceWorker.controller) {
+                show_error("Could not enable cross-origin isolation (SharedArrayBuffer unavailable). " +
+                           "Service workers may be blocked in this browser mode.");
+            }
+        }, 10000);
+    } else {
+        show_error("SharedArrayBuffer is unavailable: Vial Web must be served over HTTPS or from localhost.");
+    }
+</script>
 
 </body>

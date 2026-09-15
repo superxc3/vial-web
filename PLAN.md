@@ -18,7 +18,12 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
   script in `index.html`.
 - Branches mirror the vial-gui fork: `main` = clean mirror of `vial-kb/vial-web`,
   `xcmkb` = custom work + default branch. Pages deploys only from `xcmkb`.
-- CI has no dependency cache yet: every run rebuilds Qt 5.14 + CPython + PyQt5 (~1-2 h).
+- A full toolchain build (emsdk + Qt 5.14 + CPython + PyQt5) takes ~40 min on `ubuntu-22.04`.
+  `actions/cache` keeps `emsdk/` + a pruned `deps/` (see `prune-deps.sh`, which keeps exactly the
+  paths `src/build.sh` links against) keyed on `version.sh` + build scripts + `patches/**`.
+- On the very first visit the service worker is not yet controlling the page, so the runtime must
+  not be started until `SharedArrayBuffer` exists; `index.html` gates the `main-*.js` load on that
+  and coi-serviceworker reloads once it has taken control.
 - Local Linux is not required; everything runs on `ubuntu-22.04` runners.
 
 ## Phases
@@ -35,10 +40,16 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - [x] Favicon path made relative for the `/vial-web/` project URL
 - [x] `main` reset to upstream; work moved to `xcmkb`; default branch and Pages
       environment (no branch restriction) set on GitHub
-- [ ] First green build of `xcmkb` (run 34930649973, started 2026-09-15 04:54 UTC)
+- [x] First green build of `xcmkb` (run 34930649973, build 40m 2s, deploy 10s) → https://superxc3.github.io/vial-web/
 
 ### Phase 3 — verify in the browser (Chrome/Edge + keyboard)
-- [ ] Start button enables, Qt UI appears (proves COOP/COEP shim works)
+- [x] Start button enables (Python booted in the WASM worker), `crossOriginIsolated: true` under the
+      service worker — verified in Chrome 152 on 2026-09-15
+- [x] First-visit alert "SharedArrayBuffer is not defined" (runtime started before the SW reload) —
+      fixed by gating the runtime load in `index.html`
+- [ ] Qt UI appears after *Start Vial* + device pick
+- [ ] WebHID chooser lists the keyboard — user reported it did not; awaiting details
+      (did the chooser open? empty list? desktop Vial running? does vial.rocks list it?)
 - [ ] Keymap tab baseline
 - [ ] Lighting tab: per-key RGB, indicators
 - [ ] Trackpad tab
@@ -53,8 +64,8 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - [ ] Anything else found in testing
 
 ### Phase 4 — make iteration cheap
-- [ ] `actions/cache` for `emsdk/` + `deps/` keyed on `version.sh` + `patches/**`
-      (only if the size report says it fits GitHub's 10 GB cache) → runs drop to minutes
+- [x] `actions/cache` for `emsdk/` + pruned `deps/` (`prune-deps.sh`); first run with it populates
+      the cache, the next one should skip the ~40 min deps build — verify
 
 ### Later / optional
 - [ ] Branding in `index.html` (title, start button, gitbook link)
@@ -67,3 +78,8 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
   `465497b` (deploy from `xcmkb`). Fork Actions enabled, default branch → `xcmkb`,
   Pages source → GitHub Actions, `github-pages` env → no branch restriction.
   Waiting on run 34930649973.
+- 2026-09-15 — Run 34930649973 green (build 40 min), Pages live. User hit the first-visit
+  SharedArrayBuffer alert and reported the keyboard not being detected. Verified in Chrome that the
+  deployed page is cross-origin isolated and boots Python after the SW reload; the alert was the
+  runtime starting before that reload. Pushed: gated runtime load, `prune-deps.sh`, dependency
+  cache in CI. HID detection still open pending user details.
