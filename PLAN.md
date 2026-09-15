@@ -76,6 +76,16 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - [x] `actions/cache` for `emsdk/` + pruned `deps/` (`prune-deps.sh`) — verified: run 34939455331
       took 1m 31s on a cache hit (vs 40 min)
 
+### Phase 5 — web-first feature work (vial-gui stays the single codebase)
+- Decisions (2026-09-15): web is the primary distribution; desktop builds are kept only for
+  firmware flashing. No manual version bumps for web — the page footer's commit hashes identify
+  a build. Rules for new code: no nested event loops (`exec_()`), non-blocking dialogs, file
+  I/O only through `vialglue`, keep it light.
+- [x] Keycode search: new first tab "Search" in the keycode picker (`vial-gui@6508fc8`).
+      Matches label / QMK ID / alias / description, grouped by the tab the keycode lives in,
+      ranked exact > prefix > contains > alias > words, capped at 80, 150 ms debounce.
+      Headless-tested on desktop (offscreen Qt); verify look and feel on web.
+
 ### Later / optional
 - [x] Fork notice: start screen `#notice` + About box (`vial-gui@feff418`) say it is a customised
       XCMKB build, not affiliated with the Vial project, with upstream/source/license links;
@@ -83,6 +93,8 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - [x] Links inside the Qt UI work: Qt's openUrl is `window.open()` in the worker, which upstream
       stubbed as a no-op; `worker.js` now posts `open_url` and the page opens a new tab
 - [ ] `repository_dispatch` from vial-gui CI so a push to `vial-gui@xcmkb` rebuilds vial-web
+      (needs a fine-grained PAT with Actions: write on vial-web stored as a vial-gui secret;
+      until then a vial-gui change is deployed by pushing any commit to vial-web `xcmkb`)
 - [ ] Periodic `git merge upstream/main` into `xcmkb` on both repos
 
 ## Log
@@ -106,3 +118,4 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
   while Desktop works; added a suggested filename, awaiting a vial.rocks comparison.
 - 2026-09-15 — Fork notice added (start screen + About), About-box links made to work on web
   (`open_url` bridge). User plans to share https://superxc3.github.io/vial-web/ with clients.
+- 2026-09-15 — Keycode search shipped in vial-gui; this push rebuilds vial-web against it.
