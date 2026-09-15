@@ -167,6 +167,15 @@ static PyObject* vialglue_fatal_error(PyObject *self, PyObject *args) {
     return PyLong_FromLong(0);
 }
 
+static PyObject* vialglue_fs_sync(PyObject *self, PyObject *args) {
+    // Flush files written under the app data dir to browser storage (see index.html)
+    EM_ASM({
+        postMessage({cmd: "fs_sync"});
+    });
+
+    return PyLong_FromLong(0);
+}
+
 static PyMethodDef VialglueMethods[] = {
     {"write_device",  vialglue_write_device, METH_VARARGS, ""},
     {"read_device",  vialglue_read_device, METH_VARARGS, ""},
@@ -178,6 +187,7 @@ static PyMethodDef VialglueMethods[] = {
     {"load_layout",  vialglue_load_layout, METH_VARARGS, ""},
     {"save_layout",  vialglue_save_layout, METH_VARARGS, ""},
     {"fatal_error",  vialglue_fatal_error, METH_VARARGS, ""},
+    {"fs_sync",  vialglue_fs_sync, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 
