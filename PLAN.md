@@ -86,6 +86,15 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
       ranked exact > prefix > contains > alias > words, capped at 80, 150 ms debounce.
       Headless-tested on desktop (offscreen Qt); verify look and feel on web.
 
+- [x] Tooltips on web (`vial-gui@f737912` + this commit). Root cause: Qt 5.14's WASM compositor
+      activates every new window, tool tips included, and QTipLabel hides itself the moment its
+      window is deactivated — so a tip flashed and vanished, and the main window was left inactive
+      (no more tips until a click). Qt 5 never fixed it; Qt 6 rewrote the compositor and added a
+      `Q_OS_WASM` case in qtooltip.cpp (QTBUG-94583 is still open). `patches/qt/wasm-tooltips.patch`
+      backports both: tool-tip windows never take activation in `QWasmCompositor::notifyTopWindowChanged`,
+      plus the Qt 6 qtooltip.cpp condition. `WA_AlwaysShowToolTips` on the main window is kept as
+      insurance. Changing `patches/**` invalidates the deps cache once (~40 min).
+
 ### Later / optional
 - [x] Fork notice: start screen `#notice` + About box (`vial-gui@feff418`) say it is a customised
       XCMKB build, not affiliated with the Vial project, with upstream/source/license links;
@@ -119,3 +128,5 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - 2026-09-15 — Fork notice added (start screen + About), About-box links made to work on web
   (`open_url` bridge). User plans to share https://superxc3.github.io/vial-web/ with clients.
 - 2026-09-15 — Keycode search shipped in vial-gui; this push rebuilds vial-web against it.
+- 2026-09-15 — Search field narrowed. Tooltips: WA_AlwaysShowToolTips alone made them flash and
+  vanish; traced to window activation in the 5.14 WASM compositor, backported a fix as a Qt patch.

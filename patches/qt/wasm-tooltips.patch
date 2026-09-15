@@ -1,0 +1,30 @@
+diff -ruN a/src/plugins/platforms/wasm/qwasmcompositor.cpp b/src/plugins/platforms/wasm/qwasmcompositor.cpp
+--- a/src/plugins/platforms/wasm/qwasmcompositor.cpp
++++ b/src/plugins/platforms/wasm/qwasmcompositor.cpp
+@@ -730,6 +730,14 @@
+ 
+ void QWasmCompositor::notifyTopWindowChanged(QWasmWindow *window)
+ {
++    // A tool tip must not take activation away from the window it describes:
++    // QTipLabel hides itself as soon as that window is deactivated. Reached from
++    // addWindow, removeWindow, raise and lower alike.
++    if (window->window()->type() == Qt::ToolTip) {
++        requestRedraw();
++        return;
++    }
++
+     QWindow *modalWindow;
+     bool blocked = QGuiApplicationPrivate::instance()->isWindowBlocked(window->window(), &modalWindow);
+ 
+diff -ruN a/src/widgets/kernel/qtooltip.cpp b/src/widgets/kernel/qtooltip.cpp
+--- a/src/widgets/kernel/qtooltip.cpp
++++ b/src/widgets/kernel/qtooltip.cpp
+@@ -334,7 +334,7 @@
+         break;
+ 
+ 
+-#if defined (Q_OS_QNX) // On QNX the window activate and focus events are delayed and will appear
++#if defined (Q_OS_QNX) || defined (Q_OS_WASM) // On QNX the window activate and focus events are delayed and will appear
+                        // after the window is shown.
+     case QEvent::WindowActivate:
+     case QEvent::FocusIn:
