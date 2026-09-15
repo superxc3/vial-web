@@ -25,4 +25,9 @@ function vialgluejs_unlock_start(data, size, width, height) {
 }
 
 var window = {};
-window.open = function() {};
+
+// Qt implements QDesktopServices.openUrl() as window.open() in the calling thread, which is this
+// worker; forward it to the page, which opens the URL in a new tab.
+window.open = function(url) {
+    postMessage({cmd: "open_url", url: url});
+};

@@ -2,7 +2,7 @@
     <!-- GitHub Pages cannot send COOP/COEP headers; this service worker injects them so
          SharedArrayBuffer (needed by the pthread build) is available. Must be the first script. -->
     <script src="coi-serviceworker.js"></script>
-    <title>Vial Web</title>
+    <title>Vial Web (XCMKB)</title>
     <link rel="icon" href="icon.png" type="image/png">
 <style>
 body {
@@ -67,6 +67,16 @@ body {
 #error_msg {
     color: red;
 }
+#notice {
+    max-width: 44em;
+    margin: 2em auto 0 auto;
+    font-size: 85%;
+    line-height: 1.5;
+    color: #555;
+}
+#notice a {
+    color: #335;
+}
 </style>
 </head>
 <body>
@@ -80,6 +90,17 @@ body {
                 Latest versions of Chrome, Chromium or Edge are recommended to use Vial Web.<br>
                 You can also download the standalone Vial application from <a href="https://get.vial.today/" target="_blank">get.vial.today</a>.</p>
         </div>
+        <p id="notice">
+            This is a customised build of <a href="https://get.vial.today/" target="_blank" rel="noopener">Vial</a>
+            for XCMKB keyboards. It is not affiliated with or supported by the Vial project;
+            the official web version is at <a href="https://vial.rocks/" target="_blank" rel="noopener">vial.rocks</a>.
+            Please report issues with this build to XCMKB.<br>
+            Requires Chrome, Chromium or Edge (WebHID).
+            Source code: <a href="https://github.com/superxc3/vial-web" target="_blank" rel="noopener">vial-web</a>
+            &middot; <a href="https://github.com/superxc3/vial-gui/tree/xcmkb" target="_blank" rel="noopener">vial-gui</a>
+            (GNU GPL v2 or later)
+            &middot; <a href="https://xcmkb-docs.gitbook.io/doc/firmware-changelog" target="_blank" rel="noopener">Firmware changelog</a>
+        </p>
     </div>
     <div id="version">Vial: @VIAL_VER@<br>Web: @WEB_VER@<br>Support: @VIA_STACK_VER@</div>
 </div>
@@ -142,7 +163,23 @@ body {
             alert(e.data.msg);
         } else if (e.data.cmd == "fs_sync") {
             persistAppData();
+        } else if (e.data.cmd == "open_url") {
+            openUrl(e.data.url);
         }
+    }
+
+    function openUrl(url) {
+        // Links clicked inside the Qt UI (About box). Only http(s), and no opener back to this page.
+        if (!/^https?:\/\//i.test(url)) {
+            return;
+        }
+        var a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     }
 
     // Files the Python side writes under its app data dir (per-key colour presets, indicator
