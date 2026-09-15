@@ -165,6 +165,8 @@ body {
             persistAppData();
         } else if (e.data.cmd == "open_url") {
             openUrl(e.data.url);
+        } else if (e.data.cmd == "download_file") {
+            downloadFile(e.data.path);
         }
     }
 
@@ -177,6 +179,20 @@ body {
         a.href = url;
         a.target = "_blank";
         a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    // Firmware files from the Updates tab. Only the catalogue served next to this page (same origin,
+    // so no CORS/COEP concerns); the browser saves it with its own name.
+    function downloadFile(path) {
+        if (!/^firmware\/[A-Za-z0-9._-]+\.uf2$/.test(path)) {
+            return;
+        }
+        var a = document.createElement("a");
+        a.href = path;
+        a.download = path.split("/").pop();
         document.body.appendChild(a);
         a.click();
         a.remove();

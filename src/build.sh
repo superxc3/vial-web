@@ -10,7 +10,8 @@ rm -rf build/*
 
 pushd build
 
-VIAL_VER=$(cd ../../vial-gui/ && git rev-parse HEAD)
+# The Vial app is vendored under vialgui/; its version is the last commit that touched it
+VIAL_VER=$(git log -1 --format=%H -- ../../vialgui)
 WEB_VER=$(git rev-parse HEAD)
 VIA_STACK_VER=$(cd ../../via-keymap-precompiled/ && git rev-parse HEAD)
 UNIQVER=$(echo ${VIAL_VER} ${WEB_VER} ${VIA_STACK_VER} | sha256sum | awk '{print $1}')
@@ -18,10 +19,14 @@ UNIQVER=$(echo ${VIAL_VER} ${WEB_VER} ${VIA_STACK_VER} | sha256sum | awk '{print
 cp ../icon.png .
 cp -r ../../deps/cpython/builddir/emscripten-browser/usr .
 cp ../../via-keymap-precompiled/via_keyboard_stack.json usr/local/via_keyboards.json
-cp ../../vial-gui/src/main/resources/base/qmk_settings.json usr/local
-cp ../../vial-gui/src/build/settings/base.json usr/local/build_settings.json
-cp -r ../../vial-gui/src/main/python/* usr/local/lib/python3.11
+cp ../../vialgui/qmk_settings.json usr/local
+cp ../../vialgui/build_settings.json usr/local
+cp -r ../../vialgui/python/* usr/local/lib/python3.11
+find usr/local/lib/python3.11 -name __pycache__ -type d -prune -exec rm -rf {} +
 cp ../simpleeval.py usr/local/lib/python3.11
+# Firmware catalogue: the manifest is preloaded so the Updates tab can read it like the other JSON
+# resources; the .uf2 files stay outside the bundle and are fetched/downloaded as plain files.
+cp ../../firmware/manifest.json usr/local/firmware_manifest.json
 emcc \
     --preload-file="./usr/local" \
     -I ../../deps/cpython/Include/ \
@@ -88,6 +93,8 @@ emcc \
     ../main.c
 cp ../index.html .
 cp ../coi-serviceworker.js .
+mkdir -p firmware
+cp ../../firmware/manifest.json ../../firmware/*.uf2 firmware/
 cat ../worker.js >> main-${UNIQVER}.worker.js
 sed -i 's+err("worker sent an unknown command+my_onmessage(e);return;err("worker sent an unknown command/+g' main-${UNIQVER}.js
 

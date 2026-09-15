@@ -8,6 +8,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0   # build.sh stamps the page with the last commit touching vialgui/
 
     # The WASM toolchain (emsdk) and the Qt/CPython/PyQt5 static libs only depend on the pinned
     # versions and patches, so cache them; a hit turns a ~40 min run into a few minutes.
@@ -29,7 +31,6 @@ jobs:
 
     - name: Build vial-web
       run: |
-        git clone -b xcmkb https://github.com/superxc3/vial-gui.git
         git clone https://github.com/vial-kb/via-keymap-precompiled.git
         cd src
         ./build.sh
