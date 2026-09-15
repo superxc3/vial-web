@@ -176,6 +176,20 @@ static PyObject* vialglue_fs_sync(PyObject *self, PyObject *args) {
     return PyLong_FromLong(0);
 }
 
+static PyObject* vialglue_download_file(PyObject *self, PyObject *args) {
+    // Ask the page to save a file that is served next to it (firmware/*.uf2); see index.html
+    const char *path;
+
+    if (!PyArg_ParseTuple(args, "s", &path))
+        return NULL;
+
+    EM_ASM({
+        postMessage({cmd: "download_file", path: UTF8ToString($0)});
+    }, path);
+
+    return PyLong_FromLong(0);
+}
+
 static PyMethodDef VialglueMethods[] = {
     {"write_device",  vialglue_write_device, METH_VARARGS, ""},
     {"read_device",  vialglue_read_device, METH_VARARGS, ""},
@@ -188,6 +202,7 @@ static PyMethodDef VialglueMethods[] = {
     {"save_layout",  vialglue_save_layout, METH_VARARGS, ""},
     {"fatal_error",  vialglue_fatal_error, METH_VARARGS, ""},
     {"fs_sync",  vialglue_fs_sync, METH_VARARGS, ""},
+    {"download_file",  vialglue_download_file, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 
