@@ -57,6 +57,7 @@ pushd qtbase
 patch -p1 < $SCRIPT_DIR/patches/qt/qtcore-5.15.2-gcc11.patch
 patch -p1 < $SCRIPT_DIR/patches/qt/0008-Add-missing-limits-include.patch
 patch -p1 < $SCRIPT_DIR/patches/qt/wasm-settings.patch
+patch -p1 < $SCRIPT_DIR/patches/qt/wasm-tooltips.patch
 popd
 ./configure -xplatform wasm-emscripten -nomake examples -prefix $PWD/qtbase -feature-thread -opensource -confirm-license
 make module-qtbase module-qtdeclarative qtsvg -j$(nproc)
