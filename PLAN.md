@@ -51,11 +51,16 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - [x] WebHID chooser lists the keyboard; keymap edits and lighting effect changes reach the
       firmware (user, 2026-09-15). The earlier "not detected" was the first-visit alert state.
 - [x] Keymap tab baseline
-- [ ] Lighting tab: per-key RGB, indicators
+- [x] Lighting tab: per-key RGB, indicators — colour pickers used `QColorDialog.exec_()` (nested
+      event loop → `emscripten_sleep` error on WASM); converted to `show()` + `finished` like the
+      upstream underglow picker (`vial-gui@5466196`). User confirmed working.
 - [ ] Trackpad tab
-- [ ] OLED tab + OLED layer-name field on Keymap
-- [ ] `.vil` save/load round-trip including trackpad/RGB data
-- [ ] Custom-colour presets and indicator config survive a reload (fix below; verify with keyboard)
+- [x] OLED tab + OLED layer-name field on Keymap (user confirmed)
+- [ ] `.vil` save/load round-trip including trackpad/RGB data — save to Desktop works; save to
+      Documents failed in the Windows dialog ("C:/Users/User/Documents/-web.vil File not found").
+      Documents is not OneDrive-redirected on that PC. Added `suggestedName` (keyboard product
+      name) to the save picker; differential test pending: does vial.rocks (same code) fail too?
+- [x] Custom-colour presets and indicator config survive a reload (user confirmed)
 
 ### Phase 3b — fixes in `vial-gui@xcmkb` (as surfaced by Phase 3)
 - [x] Persistence of the app data dir. Chosen design (prototyped live in Chrome against the
@@ -68,8 +73,8 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - [ ] Anything else found in testing
 
 ### Phase 4 — make iteration cheap
-- [x] `actions/cache` for `emsdk/` + pruned `deps/` (`prune-deps.sh`); first run with it populates
-      the cache, the next one should skip the ~40 min deps build — verify
+- [x] `actions/cache` for `emsdk/` + pruned `deps/` (`prune-deps.sh`) — verified: run 34939455331
+      took 1m 31s on a cache hit (vs 40 min)
 
 ### Later / optional
 - [ ] Branding in `index.html` (title, start button, gitbook link)
@@ -92,3 +97,6 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
   with Qt QSettings), then implemented: `vial-gui@f2f1cb7` + this commit. Useful debugging
   channel: with the page booted, `PThread.runningWorkers[0].postMessage({cmd:"py", payload})`
   runs Python in the worker and `print()` lands in the DevTools console.
+- 2026-09-15 — Colour pickers fixed (`exec_()` → non-blocking), persistence confirmed by user,
+  cache hit brings CI to ~1.5 min. Open: `.vil` save into Documents fails in the Windows dialog
+  while Desktop works; added a suggested filename, awaiting a vial.rocks comparison.

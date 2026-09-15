@@ -211,12 +211,20 @@ body {
         });
     }
 
+    // Default .vil name for the save dialog: the keyboard's product name, made filename-safe
+    function layoutFileName() {
+        var name = (typeof g_device !== "undefined" && g_device.productName) ? g_device.productName : "";
+        name = name.replace(/[^A-Za-z0-9._ -]+/g, "_").replace(/^[\s._-]+|[\s._-]+$/g, "");
+        return (name || "layout") + ".vil";
+    }
+
     async function saveLayout(layout) {
         if (window.showSaveFilePicker) {
             // This shows a file chooser dialog. It's a nicer experience
             // if available, allowing the user to select a target
             // filename and directory.
-            const handle = await window.showSaveFilePicker(FILE_OPTIONS);
+            const handle = await window.showSaveFilePicker(
+                Object.assign({suggestedName: layoutFileName()}, FILE_OPTIONS));
             const stream = await handle.createWritable();
             await stream.write(layout);
             await stream.close();
@@ -225,7 +233,7 @@ body {
             // trigger a simple download with a hardcoded filename.
             const download = document.createElement('a');
             download.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(layout));
-            download.setAttribute('download', 'layout.vil');
+            download.setAttribute('download', layoutFileName());
 
             if (document.createEvent) {
                 var event = document.createEvent('MouseEvents');
