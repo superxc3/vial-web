@@ -48,19 +48,23 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
 - [x] First-visit alert "SharedArrayBuffer is not defined" (runtime started before the SW reload) —
       fixed by gating the runtime load in `index.html`
 - [ ] Qt UI appears after *Start Vial* + device pick
-- [ ] WebHID chooser lists the keyboard — user reported it did not; awaiting details
-      (did the chooser open? empty list? desktop Vial running? does vial.rocks list it?)
-- [ ] Keymap tab baseline
+- [x] WebHID chooser lists the keyboard; keymap edits and lighting effect changes reach the
+      firmware (user, 2026-09-15). The earlier "not detected" was the first-visit alert state.
+- [x] Keymap tab baseline
 - [ ] Lighting tab: per-key RGB, indicators
 - [ ] Trackpad tab
 - [ ] OLED tab + OLED layer-name field on Keymap
 - [ ] `.vil` save/load round-trip including trackpad/RGB data
-- [ ] Custom-colour presets — **known gap**: `rgb_configurator.py` writes JSON to
-      `QStandardPaths.AppLocalDataLocation`; on WASM that is in-memory and lost on reload
+- [ ] Custom-colour presets and indicator config survive a reload (fix below; verify with keyboard)
 
 ### Phase 3b — fixes in `vial-gui@xcmkb` (as surfaced by Phase 3)
-- [ ] `localStorage` bridge: `vialglue.storage_get/storage_set` in `main.c`, handler in
-      `index.html`, used by `rgb_configurator.py` under `sys.platform == "emscripten"`
+- [x] Persistence of the app data dir. Chosen design (prototyped live in Chrome against the
+      deployed page, verified across a reload): `index.html` mounts Emscripten's IDBFS on
+      `/home/web_user/.local/share` and loads it before `webmain.main`; `vialglue.fs_sync()`
+      (new, `main.c`) flushes it; vial-gui calls `util.persist_app_data()` after its two JSON
+      writes (`vial-gui@f2f1cb7`). No change to the file-based code itself.
+      Gotcha: mounting at `/home/web_user` fails with `VersionError` — Qt's wasm QSettings owns
+      an IndexedDB database of that name via `emscripten_idb_async_*` (IDBStore v22 vs IDBFS v21).
 - [ ] Anything else found in testing
 
 ### Phase 4 — make iteration cheap
@@ -83,3 +87,8 @@ trackpad tab, OLED tab, `.vil` save/restore of those) hosted on GitHub Pages.
   deployed page is cross-origin isolated and boots Python after the SW reload; the alert was the
   runtime starting before that reload. Pushed: gated runtime load, `prune-deps.sh`, dependency
   cache in CI. HID detection still open pending user details.
+- 2026-09-15 — User confirms detection + keymap + lighting effect work. Prototyped persistence in
+  the live page (IDBFS mount under `.local/share`, found the `/home/web_user` DB-name collision
+  with Qt QSettings), then implemented: `vial-gui@f2f1cb7` + this commit. Useful debugging
+  channel: with the page booted, `PThread.runningWorkers[0].postMessage({cmd:"py", payload})`
+  runs Python in the worker and `print()` lands in the DevTools console.

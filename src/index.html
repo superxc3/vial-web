@@ -140,7 +140,43 @@ body {
             saveLayout(e.data.layout);
         } else if (e.data.cmd == "fatal_error") {
             alert(e.data.msg);
+        } else if (e.data.cmd == "fs_sync") {
+            persistAppData();
         }
+    }
+
+    // Files the Python side writes under its app data dir (per-key colour presets, indicator
+    // config) live on an IndexedDB-backed filesystem so they survive reloads. The mount point is
+    // one level below the home dir because Qt's QSettings already owns an IndexedDB database
+    // named "/home/web_user" (at a different schema version), which IDBFS would collide with.
+    const APP_DATA_MOUNT = "/home/web_user/.local/share";
+    var g_app_data_mounted = false;
+
+    function mountAppData() {
+        return new Promise(function(resolve) {
+            if (g_app_data_mounted) {
+                return resolve();
+            }
+            FS.mkdirTree(APP_DATA_MOUNT);
+            FS.mount(IDBFS, {}, APP_DATA_MOUNT);
+            g_app_data_mounted = true;
+            // populate=true: IndexedDB -> in-memory FS
+            FS.syncfs(true, function(err) {
+                if (err) {
+                    console.error("Restoring app data from browser storage failed:", err);
+                }
+                resolve();
+            });
+        });
+    }
+
+    function persistAppData() {
+        // populate=false: in-memory FS -> IndexedDB
+        FS.syncfs(false, function(err) {
+            if (err) {
+                console.error("Persisting app data to browser storage failed:", err);
+            }
+        });
     }
 
     const FILE_OPTIONS = {
@@ -240,6 +276,7 @@ body {
         _vialglue_set_device_desc(allocateUTF8(JSON.stringify(device_desc)));
 
         btn.value = "Starting up....";
+        await mountAppData();
         PThread.runningWorkers[0].postMessage({cmd: "py", payload: "import webmain;webmain.main(qtApp)"});
 
         g_animation = setInterval(update_animation, 500);
