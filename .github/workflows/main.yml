@@ -29,6 +29,12 @@ jobs:
         ./fetch-deps.sh
         ./build-deps.sh
 
+    # The catalogue is derived from the .uf2 files (product string, size, sha256, sidecar notes), so a
+    # firmware dropped in through the GitHub web UI is listed without a local step. Fails the build
+    # if a file does not follow the naming rule, so a bad drop is never published.
+    - name: Regenerate firmware catalogue
+      run: python3 firmware/make-manifest.py
+
     - name: Build vial-web
       run: |
         git clone https://github.com/vial-kb/via-keymap-precompiled.git

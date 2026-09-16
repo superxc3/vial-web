@@ -30,18 +30,23 @@ such as GitHub Pages that cannot set headers. WebHID requires Chrome/Chromium/Ed
 ## Firmware catalogue
 
 `firmware/` holds the `.uf2` files offered by the *Updates* tab and `manifest.json`, which is generated
-from them. To publish a firmware:
+from them. Publishing a firmware, either way:
 
-1. Drop the `.uf2` into `firmware/` (keep QMK's name, e.g. `xcmkb_sofleplus2u_tps65-510h.uf2`).
-2. Optionally drop release notes next to it with the same stem (`xcmkb_sofleplus2u_tps65-510h.md`):
-   a short, client-facing summary of what changed in that version. The tab shows them for the selected
-   version; the full history stays on the GitBook changelog.
-3. Run `python firmware/make-manifest.py`. It reads the USB product string embedded in each file
-   (`SoflePLUS2 TPS65 Horizontal v5.10h Signature RGB` …), groups files by board (PCB batch + trackpad),
-   computes sizes and SHA-256 and picks each board's latest non-beta version. Older versions stay
-   listed for rollback; move files you no longer want offered into `firmware/archive/`, which is
-   neither scanned nor deployed.
-4. Commit and push `xcmkb`; CI copies the catalogue into the deployed page.
+**From the browser (no local tools):** on GitHub open `firmware/` → *Add file → Upload files*, drop the
+`.uf2` and, optionally, a same-named `.md` with the release notes, commit to `xcmkb`. CI regenerates the
+catalogue and deploys (~2 min).
 
-The product string must follow the naming rule documented in the generator; the *Updates* tab uses it to
-identify the client's board (from v5.10 on) and compares the version with `latest`.
+**Locally:** drop the same files into `firmware/`, run `python firmware/make-manifest.py` to see the result
+(and commit the updated `manifest.json`), push `xcmkb`.
+
+Rules the generator enforces:
+
+- Keep QMK's file name (`xcmkb_<keyboard>_<keymap>.uf2`, e.g. `xcmkb_sofleplus2u_tps65-511h.uf2`).
+- The firmware's USB product string must follow the naming rule (`SoflePLUS2 TPS65 Horizontal v5.11h
+  Signature RGB` …) — the generator reads it out of the UF2 and groups files by board; the version must
+  differ from the previous release or the *Updates* tab will not see an update.
+- Release notes: `<same stem>.md` next to the UF2 — a short client-facing summary of what changed; the tab
+  shows it for the selected version, the full history stays on the GitBook changelog.
+- Older versions left in `firmware/` stay selectable for rollback; move files you no longer want offered
+  into `firmware/archive/`, which is neither scanned nor deployed.
+- A file that breaks a rule fails the CI build (see the Actions log) instead of being published.
