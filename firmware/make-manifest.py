@@ -7,9 +7,11 @@ web app will see. The naming rule is:
 
     <Family> [<TPS43|TPS65>] [Horizontal] v<major>.<minor>[<letter>] [<batch words>] [Beta ...]
 
-`date` and `notes` already present in manifest.json are kept for a file of the same
-name; everything else is derived. A board's `latest` is its highest non-beta version
-unless the existing entry carries `"latest_override"`.
+Release notes come from a sidecar text file next to the UF2 with the same stem
+(`xcmkb_sofleplus2_tps65-510h.md` or `.txt`); without one, a `notes` value already in
+manifest.json is kept. `date` is kept too; everything else is derived. A board's `latest`
+is its highest non-beta version unless the existing entry carries `"latest_override"`.
+Only this directory is scanned: park old files in `archive/` to drop them from the list.
 
 Usage:  python firmware/make-manifest.py            (stdlib only)
 """
@@ -29,7 +31,7 @@ UF2_MAGIC0, UF2_MAGIC1, UF2_MAGIC_END = 0x0A324655, 0x9E5D5157, 0x0AB16F30
 RP2040_FAMILY = 0xE48BFF56
 FLASH_BASE, FLASH_MAX = 0x10000000, 0x10000000 + 16 * 1024 * 1024
 
-# Keep in sync with vial-gui editor/updates.py
+# Keep in sync with vialgui/python/editor/updates.py
 PRODUCT_RE = re.compile(
     r"^(?P<family>SoflePLUS2?|CornePLUS2?)"
     r"(?: (?P<trackpad>TPS43|TPS65))?"
@@ -39,15 +41,16 @@ PRODUCT_RE = re.compile(
     r"(?: (?P<beta>Beta.*))?$"
 )
 
-# (family, batch words) -> (firmware keyboard dir, label the client recognises)
+# (family, batch words) -> (firmware keyboard dir, PCB batch number for ordering, label the
+# client recognises). Batches are PCB generations, not firmware history.
 BATCHES = {
-    ("SoflePLUS", ""): ("sofleplus1", "Batch 0 - SoflePLUS v1"),
-    ("SoflePLUS2", ""): ("sofleplus2", "Latest batch"),
-    ("SoflePLUS2", "Legendary"): ("sofleplus2ano", "Batch 1 - Legendary"),
-    ("SoflePLUS2", "Legendary RGB"): ("sofleplus2legendaryrgb", "Batch 1 - Legendary RGB"),
-    ("SoflePLUS2", "Signature RGB"): ("sofleplus2u", "Batch 2 - Signature RGB"),
-    ("CornePLUS", ""): ("corneplus", "CornePLUS"),
-    ("CornePLUS2", ""): ("corneplus2", "CornePLUS2"),
+    ("SoflePLUS", ""): ("sofleplus1", 0, "Batch 0: SoflePLUS1"),
+    ("SoflePLUS2", "Legendary"): ("sofleplus2ano", 1, "Batch 1: Legendary"),
+    ("SoflePLUS2", "Legendary RGB"): ("sofleplus2legendaryrgb", 1, "Batch 1: Legendary RGB"),
+    ("SoflePLUS2", "Signature RGB"): ("sofleplus2u", 2, "Batch 2: Signature RGB"),
+    ("SoflePLUS2", ""): ("sofleplus2", 3, "Batch 3&4 (Latest)"),
+    ("CornePLUS", ""): ("corneplus", 10, "CornePLUS"),
+    ("CornePLUS2", ""): ("corneplus2", 11, "CornePLUS2"),
 }
 
 
@@ -117,19 +120,22 @@ def main():
         if (family, batch) not in BATCHES:
             problems.append("{}: no batch mapping for {!r} {!r}".format(name, family, batch))
             continue
-        kb_dir, batch_label = BATCHES[(family, batch)]
+        kb_dir, batch_no, batch_label = BATCHES[(family, batch)]
         # the file name QMK produces is xcmkb_<keyboard dir>_<keymap>.uf2; warn if it disagrees
         if not name.startswith("xcmkb_{}_".format(kb_dir)) and name != "xcmkb_{}.uf2".format(kb_dir):
             problems.append("{}: product string {!r} says {} but the file name does not".format(name, product, kb_dir))
         trackpad = (p["trackpad"] or "").lower()
         board_id = kb_dir + ("/" + trackpad + ("h" if p["horizontal"] else "") if trackpad else "")
+        hardware = " ".join(x for x in [p["trackpad"], p["horizontal"]] if x)
         board = boards.setdefault(board_id, {
             "id": board_id,
-            "name": " ".join(x for x in [family, p["trackpad"], p["horizontal"], batch] if x),
+            # what the client sees, batch first: "Batch 1: Legendary RGB - TPS65 Horizontal"
+            "name": batch_label + (" - " + hardware if hardware else ""),
             "family": family,
             "trackpad": p["trackpad"] or "",
             "horizontal": bool(p["horizontal"]),
             "batch": batch,
+            "batch_no": batch_no,
             "batch_label": batch_label,
             "latest": "",
             "firmware": [],
@@ -137,6 +143,13 @@ def main():
         with open(path, "rb") as f:
             data = f.read()
         old = prev_entries.get(name, {})
+        notes = old.get("notes", "")
+        for ext in (".md", ".txt"):
+            sidecar = os.path.join(HERE, os.path.splitext(name)[0] + ext)
+            if os.path.exists(sidecar):
+                with open(sidecar, encoding="utf-8") as f:
+                    notes = f.read().strip()
+                break
         board["firmware"].append({
             "version": p["version"],
             "beta": bool(p["beta"]),
@@ -145,7 +158,7 @@ def main():
             "size": len(data),
             "sha256": hashlib.sha256(data).hexdigest(),
             "date": old.get("date") or datetime.date.fromtimestamp(os.path.getmtime(path)).isoformat(),
-            "notes": old.get("notes", ""),
+            "notes": notes,
         })
 
     for board in boards.values():
@@ -164,14 +177,14 @@ def main():
         "schema": 1,
         "generated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "changelog_url": previous.get("changelog_url", CHANGELOG_URL),
-        "boards": [boards[k] for k in sorted(boards)],
+        "boards": sorted(boards.values(), key=lambda b: (b["batch_no"], b["trackpad"], b["horizontal"])),
     }
     with open(MANIFEST, "w", encoding="utf-8", newline="\n") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
     for board in manifest["boards"]:
-        print("{:<32} latest {:<8} {}".format(board["id"], board["latest"],
+        print("{:<32} {:<40} latest {:<8} {}".format(board["id"], board["name"], board["latest"],
               ", ".join(fw["version"] + (" (beta)" if fw["beta"] else "") for fw in board["firmware"])))
     for line in problems:
         print("WARNING:", line, file=sys.stderr)

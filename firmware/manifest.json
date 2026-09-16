@@ -1,16 +1,17 @@
 {
   "schema": 1,
-  "generated": "2026-09-15T23:17:19Z",
+  "generated": "2026-09-16T00:12:36Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
       "id": "sofleplus1",
-      "name": "SoflePLUS",
+      "name": "Batch 0: SoflePLUS1",
       "family": "SoflePLUS",
       "trackpad": "",
       "horizontal": false,
       "batch": "",
-      "batch_label": "Batch 0 - SoflePLUS v1",
+      "batch_no": 0,
+      "batch_label": "Batch 0: SoflePLUS1",
       "latest": "1.10",
       "firmware": [
         {
@@ -26,79 +27,14 @@
       ]
     },
     {
-      "id": "sofleplus2/tps43",
-      "name": "SoflePLUS2 TPS43",
-      "family": "SoflePLUS2",
-      "trackpad": "TPS43",
-      "horizontal": false,
-      "batch": "",
-      "batch_label": "Latest batch",
-      "latest": "5.10",
-      "firmware": [
-        {
-          "version": "5.10",
-          "beta": false,
-          "product": "SoflePLUS2 TPS43 v5.10",
-          "file": "xcmkb_sofleplus2_tps43-510.uf2",
-          "size": 207872,
-          "sha256": "882a83cb2573f3a076c2f7e0e1779f47724a9e6b2e8ac01cfa8b5dec22febbbf",
-          "date": "2026-09-16",
-          "notes": ""
-        }
-      ]
-    },
-    {
-      "id": "sofleplus2/tps65",
-      "name": "SoflePLUS2 TPS65",
-      "family": "SoflePLUS2",
-      "trackpad": "TPS65",
-      "horizontal": false,
-      "batch": "",
-      "batch_label": "Latest batch",
-      "latest": "5.10",
-      "firmware": [
-        {
-          "version": "5.10",
-          "beta": false,
-          "product": "SoflePLUS2 TPS65 v5.10",
-          "file": "xcmkb_sofleplus2_tps65-510.uf2",
-          "size": 201728,
-          "sha256": "a6da771a2941262de4f7dc5fbbe3778820c1349a560ffb146e62a0888837cde7",
-          "date": "2026-09-16",
-          "notes": ""
-        }
-      ]
-    },
-    {
-      "id": "sofleplus2/tps65h",
-      "name": "SoflePLUS2 TPS65 Horizontal",
-      "family": "SoflePLUS2",
-      "trackpad": "TPS65",
-      "horizontal": true,
-      "batch": "",
-      "batch_label": "Latest batch",
-      "latest": "5.10h",
-      "firmware": [
-        {
-          "version": "5.10h",
-          "beta": false,
-          "product": "SoflePLUS2 TPS65 Horizontal v5.10h",
-          "file": "xcmkb_sofleplus2_tps65-510h.uf2",
-          "size": 201728,
-          "sha256": "0047528d0983c3fc1601610460ece6e0d2f7517822efc7b9169ac46b9abb5fdf",
-          "date": "2026-09-08",
-          "notes": ""
-        }
-      ]
-    },
-    {
       "id": "sofleplus2ano/tps43",
-      "name": "SoflePLUS2 TPS43 Legendary",
+      "name": "Batch 1: Legendary - TPS43",
       "family": "SoflePLUS2",
       "trackpad": "TPS43",
       "horizontal": false,
       "batch": "Legendary",
-      "batch_label": "Batch 1 - Legendary",
+      "batch_no": 1,
+      "batch_label": "Batch 1: Legendary",
       "latest": "5.10",
       "firmware": [
         {
@@ -114,35 +50,14 @@
       ]
     },
     {
-      "id": "sofleplus2ano/tps65",
-      "name": "SoflePLUS2 TPS65 Legendary",
-      "family": "SoflePLUS2",
-      "trackpad": "TPS65",
-      "horizontal": false,
-      "batch": "Legendary",
-      "batch_label": "Batch 1 - Legendary",
-      "latest": "5.10",
-      "firmware": [
-        {
-          "version": "5.10",
-          "beta": false,
-          "product": "SoflePLUS2 TPS65 v5.10 Legendary",
-          "file": "xcmkb_sofleplus2ano_tps65-510.uf2",
-          "size": 201216,
-          "sha256": "2e46e49073e8a1211bcd911406986415fa2958cbe032a3b4e73fa088e72906c4",
-          "date": "2026-09-14",
-          "notes": ""
-        }
-      ]
-    },
-    {
       "id": "sofleplus2legendaryrgb/tps43",
-      "name": "SoflePLUS2 TPS43 Legendary RGB",
+      "name": "Batch 1: Legendary RGB - TPS43",
       "family": "SoflePLUS2",
       "trackpad": "TPS43",
       "horizontal": false,
       "batch": "Legendary RGB",
-      "batch_label": "Batch 1 - Legendary RGB",
+      "batch_no": 1,
+      "batch_label": "Batch 1: Legendary RGB",
       "latest": "5.10",
       "firmware": [
         {
@@ -158,13 +73,37 @@
       ]
     },
     {
+      "id": "sofleplus2ano/tps65",
+      "name": "Batch 1: Legendary - TPS65",
+      "family": "SoflePLUS2",
+      "trackpad": "TPS65",
+      "horizontal": false,
+      "batch": "Legendary",
+      "batch_no": 1,
+      "batch_label": "Batch 1: Legendary",
+      "latest": "5.10",
+      "firmware": [
+        {
+          "version": "5.10",
+          "beta": false,
+          "product": "SoflePLUS2 TPS65 v5.10 Legendary",
+          "file": "xcmkb_sofleplus2ano_tps65-510.uf2",
+          "size": 201216,
+          "sha256": "2e46e49073e8a1211bcd911406986415fa2958cbe032a3b4e73fa088e72906c4",
+          "date": "2026-09-14",
+          "notes": ""
+        }
+      ]
+    },
+    {
       "id": "sofleplus2legendaryrgb/tps65",
-      "name": "SoflePLUS2 TPS65 Legendary RGB",
+      "name": "Batch 1: Legendary RGB - TPS65",
       "family": "SoflePLUS2",
       "trackpad": "TPS65",
       "horizontal": false,
       "batch": "Legendary RGB",
-      "batch_label": "Batch 1 - Legendary RGB",
+      "batch_no": 1,
+      "batch_label": "Batch 1: Legendary RGB",
       "latest": "5.10",
       "firmware": [
         {
@@ -181,12 +120,13 @@
     },
     {
       "id": "sofleplus2u/tps43",
-      "name": "SoflePLUS2 TPS43 Signature RGB",
+      "name": "Batch 2: Signature RGB - TPS43",
       "family": "SoflePLUS2",
       "trackpad": "TPS43",
       "horizontal": false,
       "batch": "Signature RGB",
-      "batch_label": "Batch 2 - Signature RGB",
+      "batch_no": 2,
+      "batch_label": "Batch 2: Signature RGB",
       "latest": "5.10",
       "firmware": [
         {
@@ -203,12 +143,13 @@
     },
     {
       "id": "sofleplus2u/tps65",
-      "name": "SoflePLUS2 TPS65 Signature RGB",
+      "name": "Batch 2: Signature RGB - TPS65",
       "family": "SoflePLUS2",
       "trackpad": "TPS65",
       "horizontal": false,
       "batch": "Signature RGB",
-      "batch_label": "Batch 2 - Signature RGB",
+      "batch_no": 2,
+      "batch_label": "Batch 2: Signature RGB",
       "latest": "5.10",
       "firmware": [
         {
@@ -219,6 +160,75 @@
           "size": 201216,
           "sha256": "b8a72c26ed30ad46c83b186d4cbfcfb61c8ebdc5f0ba2e0f67c6ed81339aa716",
           "date": "2026-09-14",
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "sofleplus2/tps43",
+      "name": "Batch 3&4 (Latest) - TPS43",
+      "family": "SoflePLUS2",
+      "trackpad": "TPS43",
+      "horizontal": false,
+      "batch": "",
+      "batch_no": 3,
+      "batch_label": "Batch 3&4 (Latest)",
+      "latest": "5.10",
+      "firmware": [
+        {
+          "version": "5.10",
+          "beta": false,
+          "product": "SoflePLUS2 TPS43 v5.10",
+          "file": "xcmkb_sofleplus2_tps43-510.uf2",
+          "size": 207872,
+          "sha256": "882a83cb2573f3a076c2f7e0e1779f47724a9e6b2e8ac01cfa8b5dec22febbbf",
+          "date": "2026-09-16",
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "sofleplus2/tps65",
+      "name": "Batch 3&4 (Latest) - TPS65",
+      "family": "SoflePLUS2",
+      "trackpad": "TPS65",
+      "horizontal": false,
+      "batch": "",
+      "batch_no": 3,
+      "batch_label": "Batch 3&4 (Latest)",
+      "latest": "5.10",
+      "firmware": [
+        {
+          "version": "5.10",
+          "beta": false,
+          "product": "SoflePLUS2 TPS65 v5.10",
+          "file": "xcmkb_sofleplus2_tps65-510.uf2",
+          "size": 201728,
+          "sha256": "a6da771a2941262de4f7dc5fbbe3778820c1349a560ffb146e62a0888837cde7",
+          "date": "2026-09-16",
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "sofleplus2/tps65h",
+      "name": "Batch 3&4 (Latest) - TPS65 Horizontal",
+      "family": "SoflePLUS2",
+      "trackpad": "TPS65",
+      "horizontal": true,
+      "batch": "",
+      "batch_no": 3,
+      "batch_label": "Batch 3&4 (Latest)",
+      "latest": "5.10h",
+      "firmware": [
+        {
+          "version": "5.10h",
+          "beta": false,
+          "product": "SoflePLUS2 TPS65 Horizontal v5.10h",
+          "file": "xcmkb_sofleplus2_tps65-510h.uf2",
+          "size": 201728,
+          "sha256": "0047528d0983c3fc1601610460ece6e0d2f7517822efc7b9169ac46b9abb5fdf",
+          "date": "2026-09-08",
           "notes": ""
         }
       ]
