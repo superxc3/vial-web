@@ -40,6 +40,7 @@ const TEXT = {
 };
 
 let ui = null;
+let lastTrace = "";
 
 function els() {
     if (!ui) {
@@ -65,7 +66,10 @@ function captureConsole(run) {
     for (const k of Object.keys(orig)) {
         console[k] = (...args) => {
             orig[k].apply(console, args);
-            try { log("  · " + args.map(a => (a && a.message) ? a.message : String(a)).join(" ")); } catch (e) {}
+            try {
+                lastTrace = args.map(a => (a && a.message) ? a.message : String(a)).join(" ");
+                log("  · " + lastTrace);
+            } catch (e) {}
         };
     }
     return run().finally(() => Object.assign(console, orig));
@@ -100,7 +104,29 @@ function withTimeout(promise, label, ms = STEP_TIMEOUT) {
     return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
 }
 
+function platform() {
+    const p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+    return /win/i.test(p) ? "windows" : /mac/i.test(p) ? "mac" : /linux/i.test(p) ? "linux" : "other";
+}
+
+const CLAIM_HINT = {
+    windows: "Windows did not hand RP2 Boot over to the browser. The first time a board is in update mode, " +
+             "Windows spends 10–30 s installing its driver: leave the keyboard in update mode, wait, " +
+             "RELOAD this page and try again. If it keeps failing, Windows bound the wrong driver: in Device " +
+             "Manager ‘RP2 Boot’ must sit under ‘Universal Serial Bus devices’; install WinUSB " +
+             "for ‘RP2 Boot (Interface 1)’ once with Zadig.",
+    mac: "macOS did not hand RP2 Boot over to the browser. RELOAD this page, put the keyboard into update " +
+             "mode again and retry; make sure nothing else (picotool, a virtual machine) is using the device.",
+    linux: "Linux did not hand RP2 Boot over to the browser: a udev rule for USB ID 2e8a:0003 is needed. " +
+             "Add it, replug, RELOAD this page and retry.",
+    other: "The operating system did not hand RP2 Boot over to the browser. RELOAD this page, put the " +
+             "keyboard into update mode again and retry.",
+};
+
 function explain(e) {
+    if (e && e.claimHang) {
+        return CLAIM_HINT[platform()];
+    }
     if (e instanceof NotFoundError) {
         return "No keyboard was selected. Make sure it is in update mode (LED blinking), then click Select keyboard again.";
     }
@@ -109,8 +135,8 @@ function explain(e) {
                "On Windows the driver installs itself the first time — wait a few seconds after the LED starts " +
                "blinking. On Linux a udev rule for USB ID 2e8a:0003 is required.";
     }
-    return "Update failed: " + e.message + ". The keyboard is still in update mode; you can retry, or copy the " +
-           "downloaded .uf2 onto the RPI-RP2 drive instead.";
+    return "Update failed: " + e.message + ". The keyboard is still in update mode: reload this page and retry, " +
+           "or copy the downloaded .uf2 onto the RPI-RP2 drive instead.";
 }
 
 function hex(buf) {
@@ -242,7 +268,15 @@ async function writeImage(image, picoboot) {
     log("Bootloader: " + (info.productName || "RP2 Boot") + " serial " + (info.serialNumber || "-"));
     let conn;
     try {
-        conn = await withTimeout(picoboot.connect(), "Connect");
+        try {
+            conn = await withTimeout(picoboot.connect(), "Connect");
+        } catch (e) {
+            // opened and configured but the interface claim never came back: the OS is holding it
+            if (/timed out/.test(e.message) && /Configuration selected|Device opened/.test(lastTrace)) {
+                e.claimHang = true;
+            }
+            throw e;
+        }
         await withTimeout(conn.resetInterface(), "Interface reset");
         await withTimeout(conn.exitXip(), "Exit XIP");
 
