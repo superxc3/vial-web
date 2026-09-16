@@ -165,7 +165,8 @@ Facts that shape it (verified 2026-09-16):
       chunked writes with progress, enter XIP + read-back verify, reboot → "Update the other half"
       (same image) / "Finish" (`location.reload()`). Not done: the start-screen entry point (Vial
       must connect first, so a board whose firmware is dead still needs the RPI-RP2 drag route).
-- [ ] C — firmware (vial-qmk-xcmkb): allow `id_bootloader_jump` in INSECURE builds (drop the guard or handle
+- [x] C (2026-09-16: `quantum/via.c` guard changed in the local vial-qmk tree, uncommitted; takes effect
+      with the next firmware build) — firmware (vial-qmk): allow `id_bootloader_jump` in INSECURE builds (drop the guard or handle
       it in `raw_hid_receive_kb`). Only boards flashed with this or newer can be rebooted by the host;
       older ones go through B manually once.
 - [ ] C2 — firmware identity, same release as C: one define per keymap (`XCMKB_FW_ID
@@ -256,3 +257,10 @@ Estimate: A 1–2 h, B ~1 day, C 30 min + a firmware release, D 1–2 days, E ½
 - 2026-09-16 — Phase 6 B built (in-browser WebUSB update) together with the tab polish; pushed for a
   hardware test on the deployed page. Unverified until then: picoflash on this bootrom (exit/enter
   XIP + read-back), WinUSB auto-bind on Windows, macOS claim while RPI-RP2 is mounted.
+- 2026-09-16 — First hardware run of B hung after the device pick (no timeout in WebUSB). Rewrote the
+  flasher to picoflash.org's proven sequence (no exclusive-access command; read-back after exit XIP,
+  not enter XIP), per-step timeouts, picoboot's console trace mirrored into the overlay log, interface
+  reset + disconnect on error. Added the automatic path: *Update now* sends VIA id_bootloader_jump
+  (`Keyboard.reset()`, `hiddevice.close()` no-op added), the page watches the WebHID disconnect and
+  auto-selects an already-authorised RP2 Boot device (`Picoboot.getDevices`); otherwise double-tap +
+  chooser. Firmware side: via.c guard dropped (Phase C) — needs a firmware release to reach boards.

@@ -413,6 +413,13 @@ body {
         }
 
         g_device = devices[0];
+        // The Updates tab asks the keyboard to reboot into its bootloader before flashing; the flasher
+        // watches this timestamp to know whether the request took effect (see flash/flasher.js)
+        navigator.hid.addEventListener("disconnect", function(ev) {
+            if (ev.device === g_device) {
+                window.g_hid_disconnected_at = Date.now();
+            }
+        });
         var device_desc = {
             path: "/webhid",
             vendor_id: g_device.vendorId,

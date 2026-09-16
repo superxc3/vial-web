@@ -52,7 +52,7 @@ _WARNING = ("Updating may reset your keymap. Save your layout first (File → Sa
 _STEPS = """Both halves must run the same version.
 
 1.  Save your layout (.vil).
-2.  Click Update now and follow the dialog: double-tap the reset button on the half that has the USB cable (its LED blinks), pick “RP2 Boot” in the browser prompt, and wait for the write to finish — the keyboard restarts by itself.
+2.  Click Update now. On recent firmware the keyboard restarts into update mode by itself; on older firmware the dialog asks you to double-tap the reset button on the half that has the USB cable (its LED blinks). Pick “RP2 Boot” in the browser prompt the first time, then wait for the write to finish — the keyboard restarts by itself.
 3.  Unplug the USB cable and plug it directly into the OTHER half (the cable between the halves does not carry the update). Choose “Update the other half” and repeat step 2.
 4.  Finish: plug back into the half you normally use, press Start Vial again and load your .vil if needed.
 
@@ -298,8 +298,16 @@ class Updates(BasicEditor):
             return
         import vialglue
         entry = {"board": self.board["name"], "version": fw["version"], "file": fw["file"],
-                 "size": fw["size"], "sha256": fw["sha256"], "product": fw["product"]}
+                 "size": fw["size"], "sha256": fw["sha256"], "product": fw["product"],
+                 "reboot_requested": True}
         vialglue.flash_firmware(json.dumps(entry))
+        # Ask the running firmware to restart into its bootloader (VIA id_bootloader_jump). Firmware
+        # without that command just echoes the packet and the page falls back to "double-tap reset".
+        # Nothing talks to the keyboard after this until the page reloads.
+        try:
+            self.keyboard.reset()
+        except Exception:
+            pass
 
     def _on_download(self):
         fw = self._selected_firmware()

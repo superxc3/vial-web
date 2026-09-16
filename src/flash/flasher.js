@@ -4,9 +4,14 @@
 // BOOTSEL mode, over WebUSB using the bootrom's PICOBOOT interface (picoboot/ is
 // piersfinlayson/picoflash, MIT). Driven by the #flash overlay in index.html.
 //
-// Flow: fetch + verify the file -> user puts the keyboard into update mode and picks it in the
-// browser's device chooser -> erase, write (chunked for progress), read back, reboot -> offer
-// the same image for the other half.
+// Flow: fetch + verify the file -> the keyboard gets into update mode (Vial asks it to reboot;
+// if the firmware ignores that, the user double-taps reset) -> the bootloader device is picked
+// automatically when this page already has permission for it, otherwise in the browser chooser
+// -> reset interface, exit XIP, erase, write (chunked for progress), read back, reboot -> the
+// same image is offered for the other half.
+//
+// The command sequence mirrors picoflash.org's, which is exercised on real boards. WebUSB
+// transfers never time out on their own, so every step is wrapped in a timeout.
 
 import { Picoboot } from "./picoboot/picoboot.js";
 import { Target } from "./picoboot/target.js";
@@ -16,12 +21,20 @@ import { uf2ToFlashBuffer } from "./uf2.js";
 
 const WRITE_CHUNK = 16 * PAGE_SIZE;     // 4 KB per PICOBOOT write: ~25 progress steps for a 100 KB image
 const FLASH_LIMIT = 16 * 1024 * 1024;   // largest RP2040 flash
+const STEP_TIMEOUT = 10000;             // per USB step
+const REBOOT_WAIT = 4000;               // for the keyboard to drop off HID after Vial's reboot request
+const BOOTSEL_WAIT = 4000;              // for a permitted RP2 Boot device to appear afterwards
+const TARGET = new Target("RP2040");
 
-const STEP_TEXT = {
+const TEXT = {
     prepare: "Preparing the firmware file…",
+    rebooting: "Asking the keyboard to restart into update mode…",
+    waiting: "Waiting for the keyboard to reappear in update mode…",
     bootsel: "Put the keyboard into update mode: double-tap the reset button on the half that has the " +
              "USB cable. Its LED starts blinking and the keyboard disappears from Vial (your computer may " +
              "also show an RPI-RP2 drive — ignore it). Then click Select keyboard and choose “RP2 Boot”.",
+    other: "Unplug the USB cable and plug it directly into the OTHER half. Double-tap that half's reset " +
+           "button (LED blinking), then click Select keyboard and choose “RP2 Boot”.",
     flashing: "Writing the firmware. Do not unplug the keyboard.",
     done: "Done: the keyboard is restarting with the new firmware.",
 };
@@ -43,11 +56,23 @@ function log(line) {
     const u = els();
     u.flash_log.textContent += line + "\n";
     u.flash_log.scrollTop = u.flash_log.scrollHeight;
-    console.log("[flash] " + line);
 }
 
-function setStep(key, extra) {
-    els().flash_step.textContent = STEP_TEXT[key] + (extra ? " " + extra : "");
+// picoboot/ reports every USB step through console.log/error; mirror it into the overlay so a
+// client can copy a complete trace without opening DevTools
+function captureConsole(run) {
+    const orig = { log: console.log, error: console.error, warn: console.warn };
+    for (const k of Object.keys(orig)) {
+        console[k] = (...args) => {
+            orig[k].apply(console, args);
+            try { log("  · " + args.map(a => (a && a.message) ? a.message : String(a)).join(" ")); } catch (e) {}
+        };
+    }
+    return run().finally(() => Object.assign(console, orig));
+}
+
+function setStep(key) {
+    els().flash_step.textContent = TEXT[key];
 }
 
 function setProgress(fraction) {
@@ -63,11 +88,16 @@ function showButtons(visible) {
     }
 }
 
-function fail(message) {
-    log("ERROR: " + message);
-    els().flash_step.textContent = message;
-    setProgress(null);
-    showButtons(["flash_select", "flash_cancel"]);
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, label, ms = STEP_TIMEOUT) {
+    let timer;
+    const guard = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label + " timed out after " + ms / 1000 + " s")), ms);
+    });
+    return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
 }
 
 function explain(e) {
@@ -150,36 +180,94 @@ async function prepare(entry) {
     return image;
 }
 
-async function writeImage(image) {
+// A bootloader device this page was already allowed to use (WebUSB remembers the permission), or null
+async function permittedDevice() {
+    try {
+        const devices = await Picoboot.getDevices([TARGET]);
+        return devices.length ? devices[0] : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Vial asked the keyboard to reboot into the bootloader (firmware with host-triggered bootloader
+// jump). Wait for it to drop off HID, then for a permitted RP2 Boot device; null if either does
+// not happen, in which case the user takes over with double-tap reset and the chooser.
+async function waitForAutomaticBootsel(requestedAt) {
+    setStep("rebooting");
+    const gone = () => window.g_hid_disconnected_at && window.g_hid_disconnected_at >= requestedAt - 1000;
+    const deadline = requestedAt + REBOOT_WAIT;
+    while (Date.now() < deadline && !gone()) {
+        await sleep(200);
+    }
+    if (!gone()) {
+        log("The keyboard did not restart by itself (its firmware predates that feature) — double-tap reset instead");
+        return null;
+    }
+    log("Keyboard left normal mode, looking for the bootloader…");
+    setStep("waiting");
+    const until = Date.now() + BOOTSEL_WAIT;
+    while (Date.now() < until) {
+        const dev = await permittedDevice();
+        if (dev) {
+            return dev;
+        }
+        await sleep(500);
+    }
+    log("No previously authorised bootloader found — please pick it in the browser dialog");
+    return null;
+}
+
+async function recover(picoboot) {
+    try {
+        await withTimeout(picoboot.resetInterface(), "Interface reset", 3000);
+    } catch (e) {
+        log("Recovery reset failed: " + e.message);
+    }
+    try {
+        await withTimeout(picoboot.disconnect(), "Disconnect", 3000);
+    } catch (e) {
+        log("Disconnect failed: " + e.message);
+    }
+}
+
+async function writeImage(image, picoboot) {
     setStep("flashing");
     setProgress(0);
-    log("Requesting the keyboard (RP2 Boot)…");
-    const picoboot = await Picoboot.requestDevice([new Target("RP2040")]);
-    const conn = await picoboot.connect();
+    if (!picoboot) {
+        log("Requesting the keyboard (RP2 Boot)…");
+        picoboot = await Picoboot.requestDevice([TARGET]);
+    }
+    const info = picoboot.getUsbDeviceInfo();
+    log("Bootloader: " + (info.productName || "RP2 Boot") + " serial " + (info.serialNumber || "-"));
+    let conn;
     try {
-        await conn.setExclusiveAccess(1);
-        await conn.exitXip();
+        conn = await withTimeout(picoboot.connect(), "Connect");
+        await withTimeout(conn.resetInterface(), "Interface reset");
+        await withTimeout(conn.exitXip(), "Exit XIP");
 
         const eraseSize = Math.ceil(image.data.length / SECTOR_SIZE) * SECTOR_SIZE;
         log("Erasing " + eraseSize + " bytes");
-        await conn.flashErase(image.address, eraseSize);
+        await withTimeout(conn.flashErase(image.address, eraseSize), "Erase", 30000);
         setProgress(0.1);
 
         log("Writing " + image.data.length + " bytes");
         for (let off = 0; off < image.data.length; off += WRITE_CHUNK) {
             const chunk = image.data.subarray(off, Math.min(off + WRITE_CHUNK, image.data.length));
-            await conn.flashWrite(image.address + off, chunk);
+            await withTimeout(conn.flashWrite(image.address + off, chunk), "Write at 0x" + (image.address + off).toString(16));
             setProgress(0.1 + 0.8 * (off + chunk.length) / image.data.length);
         }
 
-        // Read back through the bootrom's XIP window and compare. A read that is not available
-        // is logged and skipped; a mismatch is an error.
+        // Read back and compare (READ of flash addresses is served by the bootrom with XIP exited,
+        // the same way picoflash's own read works). A read that fails is logged and skipped after
+        // an interface reset; a mismatch is an error.
         let mismatch = -1;
         try {
-            await conn.enterXip();
+            await withTimeout(conn.resetInterface(), "Interface reset");
+            await withTimeout(conn.exitXip(), "Exit XIP");
             for (let off = 0; off < image.data.length && mismatch < 0; off += WRITE_CHUNK) {
                 const len = Math.min(WRITE_CHUNK, image.data.length - off);
-                const readBack = await conn.flashRead(image.address + off, len);
+                const readBack = await withTimeout(conn.flashRead(image.address + off, len), "Read at 0x" + (image.address + off).toString(16));
                 for (let i = 0; i < len; i++) {
                     if (readBack[i] !== image.data[off + i]) {
                         mismatch = off + i;
@@ -192,7 +280,7 @@ async function writeImage(image) {
         } catch (e) {
             log("Read-back not available (" + e.message + "), skipped");
             try {
-                await conn.resetInterface();   // clear a stalled endpoint so the reboot command still gets through
+                await withTimeout(conn.resetInterface(), "Interface reset", 3000);
             } catch (e2) {
                 log("Interface reset failed: " + e2.message);
             }
@@ -205,19 +293,23 @@ async function writeImage(image) {
 
         log("Rebooting the keyboard");
         try {
-            await conn.reboot(100);
+            await withTimeout(conn.reboot(100), "Reboot", 3000);
         } catch (e) {
             // the write is complete and verified; a missing ACK usually means it already restarted
             log("Reboot command not acknowledged (" + e.message + "); if the keyboard did not restart, unplug and replug it");
         }
-    } finally {
-        await picoboot.disconnect();
+    } catch (e) {
+        await recover(picoboot);
+        throw e;
     }
+    await withTimeout(picoboot.disconnect(), "Disconnect", 3000).catch(() => {});
 }
 
 export async function startFlash(entry) {
     const u = els();
+    const requestedAt = Date.now();
     let image = null;
+    let busy = false;
 
     u.flash_title.textContent = "Firmware update — " + (entry.board || "");
     u.flash_file.textContent = "v" + entry.version + "  (" + entry.file + ")";
@@ -225,34 +317,60 @@ export async function startFlash(entry) {
     u.flash.style.display = "";
     showButtons(["flash_cancel"]);
 
-    u.flash_cancel.onclick = () => { u.flash.style.display = "none"; };
-    u.flash_finish.onclick = () => { location.reload(); };
-    u.flash_other.onclick = () => {
-        log("--- other half ---");
-        setStep("bootsel");
-        setProgress(null);
-        showButtons(["flash_select", "flash_cancel"]);
-    };
-    u.flash_select.onclick = async () => {
-        showButtons([]);
-        try {
-            await writeImage(image);
+    const finish = (ok) => {
+        busy = false;
+        if (ok) {
             setStep("done");
             log("Firmware v" + entry.version + " written. Now update the other half, or finish and reconnect Vial.");
             showButtons(["flash_other", "flash_finish"]);
+        } else {
+            showButtons(["flash_select", "flash_cancel"]);
+        }
+    };
+    const run = async (picoboot) => {
+        if (busy) {
+            return;
+        }
+        busy = true;
+        showButtons([]);
+        try {
+            await captureConsole(() => writeImage(image, picoboot));
+            finish(true);
         } catch (e) {
             console.error(e);
-            fail(explain(e));
+            log("ERROR: " + explain(e));
+            u.flash_step.textContent = explain(e);
+            setProgress(null);
+            finish(false);
         }
+    };
+
+    u.flash_cancel.onclick = () => { if (!busy) { u.flash.style.display = "none"; } };
+    u.flash_finish.onclick = () => { location.reload(); };
+    u.flash_select.onclick = () => run(null);
+    u.flash_other.onclick = () => {
+        log("--- other half ---");
+        setProgress(null);
+        setStep("other");
+        showButtons(["flash_select", "flash_cancel"]);
     };
 
     try {
         image = await prepare(entry);
     } catch (e) {
         console.error(e);
-        fail("Could not prepare the firmware: " + e.message);
+        log("ERROR: " + e.message);
+        u.flash_step.textContent = "Could not prepare the firmware: " + e.message;
         showButtons(["flash_cancel"]);
         return;
+    }
+
+    if (entry.reboot_requested) {
+        const dev = await captureConsole(() => waitForAutomaticBootsel(requestedAt));
+        if (dev) {
+            await run(dev);
+            return;
+        }
     }
     setStep("bootsel");
     showButtons(["flash_select", "flash_cancel"]);
