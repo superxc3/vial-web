@@ -93,6 +93,7 @@ emcc \
     ../main.c
 cp ../index.html .
 cp ../coi-serviceworker.js .
+cp -r ../flash .
 mkdir -p firmware
 cp ../../firmware/manifest.json ../../firmware/*.uf2 firmware/
 cat ../worker.js >> main-${UNIQVER}.worker.js

@@ -34,19 +34,29 @@ PRODUCT_RE = re.compile(
 # detected from v5.10 on; anything older gets the manual list.
 _DETECT_FROM = (5, 10)
 
+# (glyph, colour) per status; the same convention as app stores / browsers: green = fine,
+# amber = needs attention, grey = cannot tell
+_STATUS_STYLES = {
+    "ok": ("✓", "#3cb371"),
+    "update": ("⚠", "#e6a817"),
+    "unknown": ("?", "#9e9e9e"),
+    "info": ("•", ""),
+}
+
+_BATCH_HINT = ("“Batch” is the PCB generation of your keyboard (see your order or the XCMKB docs), "
+               "not the firmware version.")
+
 _WARNING = ("Updating may reset your keymap. Save your layout first (File → Save current layout…). "
             "Any unsaved changes will be lost.")
 
-_STEPS = (
-    "Both halves must run the same version.\n\n"
-    "1.  Save your layout (.vil).\n"
-    "2.  Update the half that has the USB cable: double-tap its reset button — the LED blinks and an "
-    "RPI-RP2 drive appears on your computer — then copy the downloaded .uf2 onto that drive. "
-    "The keyboard reboots by itself when the copy finishes.\n"
-    "3.  Unplug the USB cable and plug it directly into the OTHER half (the cable between the halves "
-    "does not carry the update). Repeat step 2 with the same .uf2.\n"
-    "4.  Plug back into the half you normally use, press Start Vial again and load your .vil if needed."
-)
+_STEPS = """Both halves must run the same version.
+
+1.  Save your layout (.vil).
+2.  Click Update now and follow the dialog: double-tap the reset button on the half that has the USB cable (its LED blinks), pick “RP2 Boot” in the browser prompt, and wait for the write to finish — the keyboard restarts by itself.
+3.  Unplug the USB cable and plug it directly into the OTHER half (the cable between the halves does not carry the update). Choose “Update the other half” and repeat step 2.
+4.  Finish: plug back into the half you normally use, press Start Vial again and load your .vil if needed.
+
+Without WebUSB (or if the update dialog cannot see the keyboard): Download update, put the half into update mode as in step 2 and copy the .uf2 onto the RPI-RP2 drive that appears."""
 
 
 def _version_key(version):
@@ -115,7 +125,7 @@ class Updates(BasicEditor):
         self.lbl_notes = _wrapped()
         self.combo_board = QComboBox()
         for b in self.boards:
-            self.combo_board.addItem("{}  —  {}".format(b["name"], b["batch_label"]), b["id"])
+            self.combo_board.addItem(b["name"], b["id"])
         self.combo_board.currentIndexChanged.connect(self._on_board_chosen)
         self.combo_version = QComboBox()
         self.combo_version.currentIndexChanged.connect(lambda _: self._show_notes())
@@ -124,6 +134,7 @@ class Updates(BasicEditor):
             ("keyboard", "Your keyboard:", self.lbl_keyboard),
             ("board", "Board:", self.lbl_board),
             ("choose", "Choose your board:", self.combo_board),
+            ("hint", "", _wrapped(tr("Updates", _BATCH_HINT))),
             ("latest", "Latest firmware:", self.lbl_latest),
             ("status", "Status:", self.lbl_status),
             ("version", "Version to download:", self.combo_version),
@@ -137,6 +148,12 @@ class Updates(BasicEditor):
         inner.addLayout(info)
 
         buttons = QHBoxLayout()
+        self.btn_update = QPushButton(tr("Updates", "Update now"))
+        self.btn_update.setToolTip(tr("Updates", "Writes the selected version to the keyboard from this page "
+                                                 "(Chrome/Edge). You will be asked to put the keyboard into "
+                                                 "update mode and to pick it in a browser dialog."))
+        self.btn_update.clicked.connect(self._on_update_now)
+        buttons.addWidget(self.btn_update)
         self.btn_download = QPushButton(tr("Updates", "Download update (.uf2)"))
         self.btn_download.clicked.connect(self._on_download)
         self.btn_changelog = QPushButton(tr("Updates", "View changelog"))
@@ -210,6 +227,11 @@ class Updates(BasicEditor):
             return None
         return self._firmware(self.board, self.combo_version.currentData())
 
+    def _set_status(self, kind, text):
+        glyph, colour = _STATUS_STYLES[kind]
+        self.lbl_status.setText(glyph + "  " + text)
+        self.lbl_status.setStyleSheet("font-weight: bold" + ("; color: " + colour if colour else ""))
+
     def _show_notes(self):
         fw = self._selected_firmware()
         self.lbl_notes.setText((fw or {}).get("notes") or "-")
@@ -223,7 +245,7 @@ class Updates(BasicEditor):
         self.combo_version.clear()
         if self.board:
             latest = self.board["latest"]
-            self.lbl_board.setText("{}  —  {}".format(self.board["name"], self.board["batch_label"]))
+            self.lbl_board.setText(self.board["name"])
             fw_latest = self._firmware(self.board, latest)
             self.lbl_latest.setText("v{}  ({})".format(latest, fw_latest["date"]) if fw_latest else "v" + latest)
             for fw in self.board["firmware"]:
@@ -235,27 +257,29 @@ class Updates(BasicEditor):
                 self.combo_version.addItem(text, fw["version"])
             self.combo_version.setCurrentIndex(max(0, self.combo_version.findData(latest)))
             if self.entry and running == latest:
-                self.lbl_status.setText(tr("Updates", "Up to date (v{})").format(running))
+                self._set_status("ok", tr("Updates", "Up to date (v{})").format(running))
             elif self.entry:
                 self.update_available = True
-                self.lbl_status.setText(tr("Updates", "Update available: v{} → v{}").format(running, latest))
+                self._set_status("update", tr("Updates", "Update available: v{} → v{}").format(running, latest))
             elif running:
                 self.update_available = True
-                self.lbl_status.setText(tr("Updates", "Your firmware v{} is not in the catalogue; "
-                                                      "the latest for this board is v{}").format(running, latest))
+                self._set_status("update", tr("Updates", "Your firmware v{} is not in the catalogue; "
+                                                        "the latest for this board is v{}").format(running, latest))
             else:
-                self.lbl_status.setText(tr("Updates", "Latest for this board is v{}").format(latest))
+                self._set_status("info", tr("Updates", "Latest for this board is v{}").format(latest))
         else:
             self.lbl_board.setText("")
             self.lbl_latest.setText("-")
-            self.lbl_status.setText(tr("Updates", "Your board could not be identified from this firmware "
-                                                  "(automatic detection needs v5.10 or newer). Choose it from the list."))
+            self._set_status("unknown", tr("Updates", "Your board could not be identified from this firmware "
+                                                    "(automatic detection needs v5.10 or newer). Choose it from the list."))
         self.combo_version.blockSignals(False)
 
-        for w in self.rows["choose"]:
-            w.setVisible(not self.detected)
+        for key in ("choose", "hint"):
+            for w in self.rows[key]:
+                w.setVisible(not self.detected)
         for w in self.rows["board"]:
             w.setVisible(self.board is not None)
+        self.btn_update.setEnabled(self.board is not None)
         self.btn_download.setEnabled(self.board is not None)
         self._show_notes()
 
@@ -267,6 +291,15 @@ class Updates(BasicEditor):
         self.board = self.boards[index]
         self.entry = None
         self._refresh()
+
+    def _on_update_now(self):
+        fw = self._selected_firmware()
+        if not fw or sys.platform != "emscripten":
+            return
+        import vialglue
+        entry = {"board": self.board["name"], "version": fw["version"], "file": fw["file"],
+                 "size": fw["size"], "sha256": fw["sha256"], "product": fw["product"]}
+        vialglue.flash_firmware(json.dumps(entry))
 
     def _on_download(self):
         fw = self._selected_firmware()

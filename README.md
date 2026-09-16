@@ -33,11 +33,15 @@ such as GitHub Pages that cannot set headers. WebHID requires Chrome/Chromium/Ed
 from them. To publish a firmware:
 
 1. Drop the `.uf2` into `firmware/` (keep QMK's name, e.g. `xcmkb_sofleplus2u_tps65-510h.uf2`).
-2. Run `python firmware/make-manifest.py`. It reads the USB product string embedded in each file
-   (`SoflePLUS2 TPS65 Horizontal v5.10h Signature RGB` …), groups files by board, computes sizes and
-   SHA-256 and picks each board's latest non-beta version. Existing `date`/`notes` are kept; add release
-   notes by editing `manifest.json` and re-running.
-3. Commit and push `xcmkb`; CI copies the catalogue into the deployed page.
+2. Optionally drop release notes next to it with the same stem (`xcmkb_sofleplus2u_tps65-510h.md`):
+   a short, client-facing summary of what changed in that version. The tab shows them for the selected
+   version; the full history stays on the GitBook changelog.
+3. Run `python firmware/make-manifest.py`. It reads the USB product string embedded in each file
+   (`SoflePLUS2 TPS65 Horizontal v5.10h Signature RGB` …), groups files by board (PCB batch + trackpad),
+   computes sizes and SHA-256 and picks each board's latest non-beta version. Older versions stay
+   listed for rollback; move files you no longer want offered into `firmware/archive/`, which is
+   neither scanned nor deployed.
+4. Commit and push `xcmkb`; CI copies the catalogue into the deployed page.
 
 The product string must follow the naming rule documented in the generator; the *Updates* tab uses it to
 identify the client's board (from v5.10 on) and compares the version with `latest`.

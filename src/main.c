@@ -190,6 +190,20 @@ static PyObject* vialglue_download_file(PyObject *self, PyObject *args) {
     return PyLong_FromLong(0);
 }
 
+static PyObject* vialglue_flash_firmware(PyObject *self, PyObject *args) {
+    // Hand a catalogue entry (JSON) to the page, which runs the WebUSB update; see index.html
+    const char *entry;
+
+    if (!PyArg_ParseTuple(args, "s", &entry))
+        return NULL;
+
+    EM_ASM({
+        postMessage({cmd: "flash_firmware", entry: UTF8ToString($0)});
+    }, entry);
+
+    return PyLong_FromLong(0);
+}
+
 static PyMethodDef VialglueMethods[] = {
     {"write_device",  vialglue_write_device, METH_VARARGS, ""},
     {"read_device",  vialglue_read_device, METH_VARARGS, ""},
@@ -203,6 +217,7 @@ static PyMethodDef VialglueMethods[] = {
     {"fatal_error",  vialglue_fatal_error, METH_VARARGS, ""},
     {"fs_sync",  vialglue_fs_sync, METH_VARARGS, ""},
     {"download_file",  vialglue_download_file, METH_VARARGS, ""},
+    {"flash_firmware",  vialglue_flash_firmware, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 

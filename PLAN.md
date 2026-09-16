@@ -153,11 +153,18 @@ Facts that shape it (verified 2026-09-16):
 - [x] A3 (2026-09-16, comment added; folders still uncommitted) — firmware repo: naming-rule comment above `#define PRODUCT` in
       `sofleplus2/keymaps/{tps65-510,tps43-510,tps65-510h}/config.h` (text agreed 2026-09-16; the other
       variants' 510 keymaps optional). Commit the three untracked 510 keymap folders while there.
-- [ ] B — page-side flasher, standalone: vendor picoflash `pkg/` + `uf2.js` into `src/flash/` (MIT notice
+- [x] B (2026-09-16, first cut; needs a hardware test) — page-side flasher: vendor picoflash `pkg/` + `uf2.js` into `src/flash/` (MIT notice
       kept, copied by `build.sh`); "Update firmware" on the start screen + an overlay like `#unlock`;
       pre-flight checks (family ID, address range, size cap, sha256 vs manifest); WebUSB erase/write with
       progress, then reboot; FS Access and download fallbacks; bootloader-entry and "flash the other half"
       instructions. Doubles as the recovery path when Vial cannot connect.
+      Built as: `src/flash/` (picoflash `pkg/` at 6783554 minus its broken `index.js`, `uf2.js`,
+      our `flasher.js`), `#flash` overlay in `index.html`, `vialglue.flash_firmware(entry_json)`,
+      *Update now* button in the tab. Flow: fetch → size/SHA-256/UF2 family+range checks → user
+      double-taps reset → WebUSB chooser ("RP2 Boot") → exclusive access, exit XIP, erase, 4 KB
+      chunked writes with progress, enter XIP + read-back verify, reboot → "Update the other half"
+      (same image) / "Finish" (`location.reload()`). Not done: the start-screen entry point (Vial
+      must connect first, so a board whose firmware is dead still needs the RPI-RP2 drag route).
 - [ ] C — firmware (vial-qmk-xcmkb): allow `id_bootloader_jump` in INSECURE builds (drop the guard or handle
       it in `raw_hid_receive_kb`). Only boards flashed with this or newer can be rebooted by the host;
       older ones go through B manually once.
@@ -241,3 +248,11 @@ Estimate: A 1–2 h, B ~1 day, C 30 min + a firmware release, D 1–2 days, E ½
 - 2026-09-16 — Decision: stop maintaining the vial-gui repo. Its Python app (102 files, 796 KB) and
   two JSON resources are vendored into `vialgui/`; CI no longer clones vial-gui. The Updates tab
   (`vialgui/python/editor/updates.py`) ships with this commit.
+- 2026-09-16 — Updates tab polish (not pushed yet): status glyph/colour (green tick, amber warning, grey
+  question mark), board list batch-first ("Batch 1: Legendary RGB - TPS65"; batches = PCB generations,
+  hint shown under the list), release notes from `<uf2 stem>.md` sidecars, `firmware/archive/` for
+  files to stop offering (older versions still in `firmware/` stay selectable for rollback).
+  Decision: skip the drag-to-RPI-RP2 UX as the target; next is B (*Update now*, WebUSB) + C.
+- 2026-09-16 — Phase 6 B built (in-browser WebUSB update) together with the tab polish; pushed for a
+  hardware test on the deployed page. Unverified until then: picoflash on this bootrom (exit/enter
+  XIP + read-back), WinUSB auto-bind on Windows, macOS claim while RPI-RP2 is mounted.

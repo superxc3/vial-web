@@ -64,6 +64,58 @@ body {
     width: 30%;
     text-align: center;
 }
+#flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#flash_inner {
+    background-color: #454545;
+    color: white;
+    padding: 1em 1.5em;
+    border-radius: 1em;
+    width: 34em;
+    max-width: 90%;
+    line-height: 1.4;
+}
+#flash_inner h2 {
+    margin: 0 0 0.25em 0;
+    font-size: 120%;
+}
+#flash_file {
+    color: #bbb;
+    font-size: 90%;
+}
+#flash_step {
+    min-height: 3em;
+}
+#flash_progress {
+    width: 100%;
+    height: 1.2em;
+}
+#flash_log {
+    height: 7em;
+    overflow-y: auto;
+    background-color: #222;
+    color: #ccc;
+    font-family: monospace;
+    font-size: 80%;
+    padding: 0.5em;
+    margin: 0.5em 0;
+    white-space: pre-wrap;
+}
+#flash_buttons input {
+    font-size: 100%;
+    padding: 0.4em 1em;
+    margin-right: 0.5em;
+}
 #error_msg {
     color: red;
 }
@@ -112,6 +164,22 @@ body {
         <p>Press and hold the following keys until the progress bar below fills up:</p>
         <p><img id="unlock_img"></p>
         <p><progress id="unlock_status" value="0" max="1"></progress></p>
+    </div>
+</div>
+
+<div id="flash" style="display:none">
+    <div id="flash_inner">
+        <h2 id="flash_title">Firmware update</h2>
+        <div id="flash_file"></div>
+        <p id="flash_step"></p>
+        <progress id="flash_progress" value="0" max="1"></progress>
+        <div id="flash_log"></div>
+        <div id="flash_buttons">
+            <input id="flash_select" type="button" value="Select keyboard" />
+            <input id="flash_other" type="button" value="Update the other half" />
+            <input id="flash_finish" type="button" value="Finish and reconnect Vial" />
+            <input id="flash_cancel" type="button" value="Cancel" />
+        </div>
     </div>
 </div>
 
@@ -167,6 +235,8 @@ body {
             openUrl(e.data.url);
         } else if (e.data.cmd == "download_file") {
             downloadFile(e.data.path);
+        } else if (e.data.cmd == "flash_firmware") {
+            flashFirmware(e.data.entry);
         }
     }
 
@@ -196,6 +266,27 @@ body {
         document.body.appendChild(a);
         a.click();
         a.remove();
+    }
+
+    // "Update now" in the Updates tab: the page flashes the catalogue file over WebUSB (see flash/flasher.js)
+    function flashFirmware(entryJson) {
+        var entry;
+        try {
+            entry = JSON.parse(entryJson);
+        } catch (e) {
+            return;
+        }
+        if (!("usb" in navigator)) {
+            alert("This browser does not support WebUSB, which the in-browser update needs. " +
+                  "Use \"Download update\" and copy the file onto the RPI-RP2 drive instead.");
+            return;
+        }
+        import("./flash/flasher.js").then(function(flasher) {
+            return flasher.startFlash(entry);
+        }).catch(function(e) {
+            console.error(e);
+            alert("Could not start the firmware update: " + e.message);
+        });
     }
 
     // Files the Python side writes under its app data dir (per-key colour presets, indicator
