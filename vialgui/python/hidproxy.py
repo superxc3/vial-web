@@ -21,6 +21,10 @@ if sys.platform == "emscripten":
             data = vialglue.read_device()
             return data
 
+        def close(self):
+            # the page owns the WebHID device; nothing to release here
+            pass
+
 
     class hid:
 
