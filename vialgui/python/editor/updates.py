@@ -52,7 +52,7 @@ _WARNING = ("Updating may reset your keymap. Save your layout first (File → Sa
 _STEPS = """Both halves must run the same version.
 
 1.  Save your layout (.vil).
-2.  Click Update now. On recent firmware the keyboard restarts into update mode by itself; on older firmware the dialog asks you to double-tap the reset button on the half that has the USB cable (its LED blinks). Pick “RP2 Boot” in the browser prompt the first time, then wait for the write to finish — the keyboard restarts by itself.
+2.  Click Update now. On recent firmware the keyboard restarts into update mode by itself; on older firmware the dialog asks you to double-tap the reset button on the half that has the USB cable (its LED blinks). Then choose Copy to RPI-RP2 drive and pick the drive that appeared (needs no driver), or Select keyboard (USB). Wait for the write to finish — the keyboard restarts by itself.
 3.  Unplug the USB cable and plug it directly into the OTHER half (the cable between the halves does not carry the update). Choose “Update the other half” and repeat step 2.
 4.  Finish: plug back into the half you normally use, press Start Vial again and load your .vil if needed.
 
