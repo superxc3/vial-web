@@ -26,6 +26,7 @@ const STEP_TIMEOUT = 10000;             // per USB step
 const REBOOT_WAIT = 4000;               // for the keyboard to drop off HID after Vial's reboot request
 const BOOTSEL_WAIT = 4000;              // for a permitted RP2 Boot device to appear afterwards
 const TARGET = new Target("RP2040");
+const USB_OK_KEY = "xcmkb_flash_usb_ok";   // set once the USB route has succeeded in this browser
 
 const TEXT = {
     prepare: "Preparing the firmware file…",
@@ -39,6 +40,8 @@ const TEXT = {
              "(USB) and choose \u201cRP2 Boot\u201d.",
     other: "Unplug the USB cable and plug it directly into the OTHER half. Double-tap that half's reset " +
            "button (LED blinking), then click Write to RPI-RP2 drive or Select keyboard (USB) again.",
+    ready: "The keyboard is in update mode (LED blinking). Click Write to RPI-RP2 drive (no driver needed: " +
+           "select the RPI-RP2 drive itself in the folder dialog) or Select keyboard (USB).",
     drive: "In the folder dialog select the RPI-RP2 drive itself (This PC \u2192 RPI-RP2), click Select " +
            "Folder and allow editing. You do not need to find the .uf2 file \u2014 it is already loaded. " +
            "Do not unplug the keyboard while it is written.",
@@ -274,8 +277,8 @@ async function waitForAutomaticBootsel(requestedAt) {
         await sleep(200);
     }
     if (!gone()) {
-        log("The keyboard did not restart by itself (its firmware predates that feature) — double-tap reset instead");
-        return null;
+        log("The keyboard did not restart by itself (its firmware predates that feature) \u2014 double-tap reset instead");
+        return { rebooted: false, dev: null };
     }
     log("Keyboard left normal mode, looking for the bootloader…");
     setStep("waiting");
@@ -283,12 +286,12 @@ async function waitForAutomaticBootsel(requestedAt) {
     while (Date.now() < until) {
         const dev = await permittedDevice();
         if (dev) {
-            return dev;
+            return { rebooted: true, dev };
         }
         await sleep(500);
     }
-    log("No previously authorised bootloader found — please pick it in the browser dialog");
-    return null;
+    log("No previously authorised bootloader found \u2014 the USB route will ask you to pick it");
+    return { rebooted: true, dev: null };
 }
 
 async function recover(picoboot) {
@@ -321,6 +324,7 @@ async function writeImage(image, picoboot) {
             // opened and configured but the interface claim never came back: the OS is holding it
             if (/timed out/.test(e.message) && /Configuration selected|Device opened/.test(lastTrace)) {
                 e.claimHang = true;
+                try { localStorage.removeItem(USB_OK_KEY); } catch (e2) {}
             }
             throw e;
         }
@@ -384,6 +388,7 @@ async function writeImage(image, picoboot) {
         throw e;
     }
     await withTimeout(picoboot.disconnect(), "Disconnect", 3000).catch(() => {});
+    try { localStorage.setItem(USB_OK_KEY, "1"); } catch (e) {}
 }
 
 export async function startFlash(entry) {
@@ -450,9 +455,20 @@ export async function startFlash(entry) {
     }
 
     if (entry.reboot_requested) {
-        const dev = await captureConsole(() => waitForAutomaticBootsel(requestedAt));
+        const { rebooted, dev } = await captureConsole(() => waitForAutomaticBootsel(requestedAt));
         if (dev) {
-            await run(() => writeImage(image, dev));
+            // no chooser needed for this device; go fully automatic only once USB has worked here
+            u.flash_select.onclick = () => run(() => writeImage(image, dev));
+            let usbOk = false;
+            try { usbOk = localStorage.getItem(USB_OK_KEY) === "1"; } catch (e) {}
+            if (usbOk) {
+                await run(() => writeImage(image, dev));
+                return;
+            }
+        }
+        if (rebooted) {
+            setStep("ready");
+            showButtons(["flash_drive", "flash_select", "flash_cancel"]);
             return;
         }
     }

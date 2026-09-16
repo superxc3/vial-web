@@ -153,7 +153,7 @@ Facts that shape it (verified 2026-09-16):
 - [x] A3 (2026-09-16, comment added; folders still uncommitted) — firmware repo: naming-rule comment above `#define PRODUCT` in
       `sofleplus2/keymaps/{tps65-510,tps43-510,tps65-510h}/config.h` (text agreed 2026-09-16; the other
       variants' 510 keymaps optional). Commit the three untracked 510 keymap folders while there.
-- [x] B (2026-09-16, first cut; needs a hardware test) — page-side flasher: vendor picoflash `pkg/` + `uf2.js` into `src/flash/` (MIT notice
+- [x] B (2026-09-16; drive route verified on Windows by the user, USB route pending a PC with WinUSB / the macOS test) — page-side flasher: vendor picoflash `pkg/` + `uf2.js` into `src/flash/` (MIT notice
       kept, copied by `build.sh`); "Update firmware" on the start screen + an overlay like `#unlock`;
       pre-flight checks (family ID, address range, size cap, sha256 vs manifest); WebUSB erase/write with
       progress, then reboot; FS Access and download fallbacks; bootloader-entry and "flash the other half"
@@ -271,3 +271,7 @@ Estimate: A 1–2 h, B ~1 day, C 30 min + a firmware release, D 1–2 days, E ½
   Connect timeouts now explain the driver situation per OS and say to reload before retrying (a hung
   claim leaves the device half-open in the tab). QK_BOOT as a key works on current firmware; the
   host-side reboot needs the next firmware build.
+- 2026-09-16 — *Write to RPI-RP2 drive* verified by the user on Windows (`9176d26`). User rebuilt tps65-510h
+  from the vial-qmk tree with the via.c change (09:20 build). Flow change: after an automatic reboot the
+  page auto-runs the USB route only once USB has succeeded in that browser (`localStorage`
+  `xcmkb_flash_usb_ok`); otherwise it shows the two buttons without asking for a double-tap.
