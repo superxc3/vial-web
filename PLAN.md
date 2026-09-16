@@ -264,3 +264,10 @@ Estimate: A 1–2 h, B ~1 day, C 30 min + a firmware release, D 1–2 days, E ½
   (`Keyboard.reset()`, `hiddevice.close()` no-op added), the page watches the WebHID disconnect and
   auto-selects an already-authorised RP2 Boot device (`Picoboot.getDevices`); otherwise double-tap +
   chooser. Firmware side: via.c guard dropped (Phase C) — needs a firmware release to reach boards.
+- 2026-09-16 — Second hardware run (Windows): WebUSB `claimInterface` never returned because Windows
+  had not bound WinUSB to RP2 Boot (yellow warning in Device Manager; Zadig fixes that PC). Added the
+  driver-free route to the overlay: *Copy to RPI-RP2 drive* (File System Access API: pick the drive,
+  verify INFO_UF2.TXT, write the UF2; a close() failing after a complete write = the board rebooted).
+  Connect timeouts now explain the driver situation per OS and say to reload before retrying (a hung
+  claim leaves the device half-open in the tab). QK_BOOT as a key works on current firmware; the
+  host-side reboot needs the next firmware build.

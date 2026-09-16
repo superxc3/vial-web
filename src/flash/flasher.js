@@ -8,7 +8,8 @@
 // if the firmware ignores that, the user double-taps reset) -> the bootloader device is picked
 // automatically when this page already has permission for it, otherwise in the browser chooser
 // -> reset interface, exit XIP, erase, write (chunked for progress), read back, reboot -> the
-// same image is offered for the other half.
+// same image is offered for the other half. Alternative that needs no driver at all: the UF2 is
+// written into the RPI-RP2 drive the bootloader exposes (File System Access API).
 //
 // The command sequence mirrors picoflash.org's, which is exercised on real boards. WebUSB
 // transfers never time out on their own, so every step is wrapped in a timeout.
@@ -31,10 +32,12 @@ const TEXT = {
     rebooting: "Asking the keyboard to restart into update mode…",
     waiting: "Waiting for the keyboard to reappear in update mode…",
     bootsel: "Put the keyboard into update mode: double-tap the reset button on the half that has the " +
-             "USB cable. Its LED starts blinking and the keyboard disappears from Vial (your computer may " +
-             "also show an RPI-RP2 drive — ignore it). Then click Select keyboard and choose “RP2 Boot”.",
+             "USB cable. Its LED starts blinking, the keyboard disappears from Vial and an RPI-RP2 drive " +
+             "appears. Then either click Copy to RPI-RP2 drive and pick that drive (no driver needed), or " +
+             "Select keyboard (USB) and choose \u201cRP2 Boot\u201d.",
     other: "Unplug the USB cable and plug it directly into the OTHER half. Double-tap that half's reset " +
-           "button (LED blinking), then click Select keyboard and choose “RP2 Boot”.",
+           "button (LED blinking), then click Copy to RPI-RP2 drive or Select keyboard (USB) again.",
+    drive: "Writing the firmware to the RPI-RP2 drive. Do not unplug the keyboard.",
     flashing: "Writing the firmware. Do not unplug the keyboard.",
     done: "Done: the keyboard is restarting with the new firmware.",
 };
@@ -46,7 +49,7 @@ function els() {
     if (!ui) {
         ui = {};
         for (const id of ["flash", "flash_title", "flash_file", "flash_step", "flash_progress", "flash_log",
-                          "flash_select", "flash_other", "flash_finish", "flash_cancel"]) {
+                          "flash_select", "flash_drive", "flash_other", "flash_finish", "flash_cancel"]) {
             ui[id] = document.getElementById(id);
         }
     }
@@ -87,7 +90,7 @@ function setProgress(fraction) {
 
 function showButtons(visible) {
     const u = els();
-    for (const id of ["flash_select", "flash_other", "flash_finish", "flash_cancel"]) {
+    for (const id of ["flash_select", "flash_drive", "flash_other", "flash_finish", "flash_cancel"]) {
         u[id].style.display = visible.includes(id) ? "" : "none";
     }
 }
@@ -110,7 +113,8 @@ function platform() {
 }
 
 const CLAIM_HINT = {
-    windows: "Windows did not hand RP2 Boot over to the browser. The first time a board is in update mode, " +
+    windows: "Windows did not hand RP2 Boot over to the browser. Use Copy to RPI-RP2 drive instead (no " +
+             "driver needed), or fix the driver: the first time a board is in update mode, " +
              "Windows spends 10–30 s installing its driver: leave the keyboard in update mode, wait, " +
              "RELOAD this page and try again. If it keeps failing, Windows bound the wrong driver: in Device " +
              "Manager ‘RP2 Boot’ must sit under ‘Universal Serial Bus devices’; install WinUSB " +
@@ -203,7 +207,45 @@ async function prepare(entry) {
         image.data = padded;
     }
     log(blocks + " UF2 blocks, " + image.data.length + " bytes of flash at 0x" + image.address.toString(16));
-    return image;
+    return { image, bytes };
+}
+
+// Driver-free route: write the UF2 into the RPI-RP2 drive. The bootrom programs each block as it
+// arrives and restarts as soon as the last one lands, so the final close() (Chrome renames its
+// .crswap temp file into place) fails with the drive gone - after a complete write that is success.
+async function writeViaDrive(bytes, fileName) {
+    if (!window.showDirectoryPicker) {
+        throw new Error("this browser cannot write to drives; use Download update and copy the file yourself");
+    }
+    setStep("drive");
+    setProgress(null);
+    const dir = await window.showDirectoryPicker({ id: "rpi-rp2", mode: "readwrite" });
+    let infoText = "";
+    try {
+        const info = await dir.getFileHandle("INFO_UF2.TXT");
+        infoText = await (await info.getFile()).text();
+    } catch (e) {
+        throw new Error("\u201c" + dir.name + "\u201d is not the RPI-RP2 drive (no INFO_UF2.TXT in it)");
+    }
+    if (!/RPI-RP2|UF2/i.test(infoText)) {
+        throw new Error("\u201c" + dir.name + "\u201d does not look like the RP2040 bootloader drive");
+    }
+    log("Drive " + dir.name + ": " + infoText.split("\n")[0].trim());
+    const handle = await dir.getFileHandle(fileName, { create: true });
+    const writable = await handle.createWritable({ keepExistingData: false });
+    let written = false;
+    try {
+        await writable.write(bytes);
+        written = true;
+        await writable.close();
+        log("File written and closed");
+    } catch (e) {
+        if (!written) {
+            throw new Error("could not write to the drive (" + e.message + ")");
+        }
+        log("Drive vanished while finishing the copy (" + e.message + ") \u2014 that is the keyboard restarting");
+    }
+    setProgress(1);
 }
 
 // A bootloader device this page was already allowed to use (WebUSB remembers the permission), or null
@@ -343,6 +385,7 @@ export async function startFlash(entry) {
     const u = els();
     const requestedAt = Date.now();
     let image = null;
+    let bytes = null;
     let busy = false;
 
     u.flash_title.textContent = "Firmware update — " + (entry.board || "");
@@ -358,22 +401,23 @@ export async function startFlash(entry) {
             log("Firmware v" + entry.version + " written. Now update the other half, or finish and reconnect Vial.");
             showButtons(["flash_other", "flash_finish"]);
         } else {
-            showButtons(["flash_select", "flash_cancel"]);
+            showButtons(["flash_drive", "flash_select", "flash_cancel"]);
         }
     };
-    const run = async (picoboot) => {
+    const run = async (job) => {
         if (busy) {
             return;
         }
         busy = true;
         showButtons([]);
         try {
-            await captureConsole(() => writeImage(image, picoboot));
+            await captureConsole(job);
             finish(true);
         } catch (e) {
             console.error(e);
-            log("ERROR: " + explain(e));
-            u.flash_step.textContent = explain(e);
+            const why = (e && e.name === "AbortError") ? "No drive was chosen." : explain(e);
+            log("ERROR: " + why);
+            u.flash_step.textContent = why;
             setProgress(null);
             finish(false);
         }
@@ -381,16 +425,17 @@ export async function startFlash(entry) {
 
     u.flash_cancel.onclick = () => { if (!busy) { u.flash.style.display = "none"; } };
     u.flash_finish.onclick = () => { location.reload(); };
-    u.flash_select.onclick = () => run(null);
+    u.flash_select.onclick = () => run(() => writeImage(image, null));
+    u.flash_drive.onclick = () => run(() => writeViaDrive(bytes, entry.file));
     u.flash_other.onclick = () => {
         log("--- other half ---");
         setProgress(null);
         setStep("other");
-        showButtons(["flash_select", "flash_cancel"]);
+        showButtons(["flash_drive", "flash_select", "flash_cancel"]);
     };
 
     try {
-        image = await prepare(entry);
+        ({ image, bytes } = await prepare(entry));
     } catch (e) {
         console.error(e);
         log("ERROR: " + e.message);
@@ -402,10 +447,10 @@ export async function startFlash(entry) {
     if (entry.reboot_requested) {
         const dev = await captureConsole(() => waitForAutomaticBootsel(requestedAt));
         if (dev) {
-            await run(dev);
+            await run(() => writeImage(image, dev));
             return;
         }
     }
     setStep("bootsel");
-    showButtons(["flash_select", "flash_cancel"]);
+    showButtons(["flash_drive", "flash_select", "flash_cancel"]);
 }
