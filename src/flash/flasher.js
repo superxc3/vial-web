@@ -32,12 +32,16 @@ const TEXT = {
     rebooting: "Asking the keyboard to restart into update mode…",
     waiting: "Waiting for the keyboard to reappear in update mode…",
     bootsel: "Put the keyboard into update mode: double-tap the reset button on the half that has the " +
-             "USB cable. Its LED starts blinking, the keyboard disappears from Vial and an RPI-RP2 drive " +
-             "appears. Then either click Copy to RPI-RP2 drive and pick that drive (no driver needed), or " +
-             "Select keyboard (USB) and choose \u201cRP2 Boot\u201d.",
+             "USB cable. Its LED starts blinking, the keyboard disappears from Vial and a drive named " +
+             "RPI-RP2 appears on your computer. Then click Write to RPI-RP2 drive (no driver needed): a " +
+             "folder dialog opens \u2014 the firmware is already loaded, so just select the RPI-RP2 drive " +
+             "itself (This PC \u2192 RPI-RP2) and click Select Folder, then Allow. Or use Select keyboard " +
+             "(USB) and choose \u201cRP2 Boot\u201d.",
     other: "Unplug the USB cable and plug it directly into the OTHER half. Double-tap that half's reset " +
-           "button (LED blinking), then click Copy to RPI-RP2 drive or Select keyboard (USB) again.",
-    drive: "Writing the firmware to the RPI-RP2 drive. Do not unplug the keyboard.",
+           "button (LED blinking), then click Write to RPI-RP2 drive or Select keyboard (USB) again.",
+    drive: "In the folder dialog select the RPI-RP2 drive itself (This PC \u2192 RPI-RP2), click Select " +
+           "Folder and allow editing. You do not need to find the .uf2 file \u2014 it is already loaded. " +
+           "Do not unplug the keyboard while it is written.",
     flashing: "Writing the firmware. Do not unplug the keyboard.",
     done: "Done: the keyboard is restarting with the new firmware.",
 };
@@ -113,7 +117,7 @@ function platform() {
 }
 
 const CLAIM_HINT = {
-    windows: "Windows did not hand RP2 Boot over to the browser. Use Copy to RPI-RP2 drive instead (no " +
+    windows: "Windows did not hand RP2 Boot over to the browser. Use Write to RPI-RP2 drive instead (no " +
              "driver needed), or fix the driver: the first time a board is in update mode, " +
              "Windows spends 10–30 s installing its driver: leave the keyboard in update mode, wait, " +
              "RELOAD this page and try again. If it keeps failing, Windows bound the wrong driver: in Device " +
@@ -225,7 +229,8 @@ async function writeViaDrive(bytes, fileName) {
         const info = await dir.getFileHandle("INFO_UF2.TXT");
         infoText = await (await info.getFile()).text();
     } catch (e) {
-        throw new Error("\u201c" + dir.name + "\u201d is not the RPI-RP2 drive (no INFO_UF2.TXT in it)");
+        throw new Error("\u201c" + dir.name + "\u201d is not the RPI-RP2 drive (no INFO_UF2.TXT in it). In the " +
+                        "folder dialog, go to This PC and select the drive named RPI-RP2 itself");
     }
     if (!/RPI-RP2|UF2/i.test(infoText)) {
         throw new Error("\u201c" + dir.name + "\u201d does not look like the RP2040 bootloader drive");
