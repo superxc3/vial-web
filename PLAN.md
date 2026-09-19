@@ -275,3 +275,33 @@ Estimate: A 1–2 h, B ~1 day, C 30 min + a firmware release, D 1–2 days, E ½
   from the vial-qmk tree with the via.c change (09:20 build). Flow change: after an automatic reboot the
   page auto-runs the USB route only once USB has succeeded in that browser (`localStorage`
   `xcmkb_flash_usb_ok`); otherwise it shows the two buttons without asking for a double-tap.
+
+### Phase 7 — `.vil` load on the web: the "different keyboard" prompt crashes — decided 2026-09-20
+Facts (verified 2026-09-20):
+- `KeymapEditor.restore_layout` (`keymap_editor.py:174`) asks with `QMessageBox.question()`, a blocking
+  dialog = nested Qt event loop. Qt 5.14's `QEventLoop::exec()` implements a nested loop on WASM with
+  `emscripten_sleep(1)` (QTBUG-70185), which needs ASYNCIFY; our `-pthread -sPROXY_TO_PTHREAD` build has
+  none, so Emscripten 3.1.10's stub throws "Please compile your program with async support …". The throw
+  escapes the worker's `onmessage`, the page re-throws it as an `ErrorEvent` and `window.onerror` alerts
+  `Uncaught [object ErrorEvent]`. The box is drawn (`exec()` shows first), but the frame that would call
+  `keyboard.restore_layout()` is gone, so Yes does nothing. Same class as the `QColorDialog.exec_()` bug
+  of Phase 3; upstream vial-gui has the identical code.
+- What is compared is the Vial UID (`VIAL_KEYBOARD_UID`, `keyboard_comm.py:167`, saved as `"uid"`), not
+  the USB product string. In vial-qmk it is per keymap and has changed between versions of the same board
+  (sofleplus2 tps65-508h 91C4…, -509h 2E77…, -510h 4F8B…, -510 6BE4…; sofleplus2u tps65-510 ADAA…;
+  corneplus2 5C0D…), so the Updates-tab flow (save .vil → flash → load .vil) triggers the prompt on the
+  same physical board. Matrices: sofleplus2 10×7, corneplus2 8×6.
+- [x] A (2026-09-20, incl. `qmk_settings.py`) — non-blocking prompt: `QMessageBox` + `setModal(True)` + `finished` (pattern of
+      `rgb_configurator.py:227` / `webmain.show_exception_box`); the restore runs in the callback, then a
+      new `KeymapEditor.layout_restored` signal → `MainWindow.rebuild()` (today `on_layout_loaded` and
+      `on_layout_load` call `rebuild()` synchronously right after; with an async answer that would run
+      before the load and leave the other tabs stale). Same fix for `qmk_settings.py:224` (reset question).
+- [x] B (2026-09-20; `KeymapEditor.layout_matches`, checked headless on Windows Qt — offscreen/minimal
+      QPA segfault on a bare `QMessageBox.show()` with the PyQt5 5.15.11 wheel, so use `QT_QPA_PLATFORM=windows`) — warn on layout shape, not UID: compare layers/rows/cols/encoder count of the `.vil` with the
+      connected keyboard; a Sofle file from any firmware version loads silently, a Corne file still warns.
+      (Alternative/addition, firmware side: one fixed UID per board family, never changed again — only
+      helps boards on new firmware; B helps the ones already shipped.)
+- [x] (2026-09-20) `index.html` `window.onerror` shows `error.message` for an `ErrorEvent` instead of
+      `[object ErrorEvent]`.
+- Later, same class, not in scope: `main_window.py:327/333/441` (`QMessageBox.warning`, `msg.exec_()`),
+  `textbox_window.py:87/97` (macro text import/export needs the `vialglue` file bridge).

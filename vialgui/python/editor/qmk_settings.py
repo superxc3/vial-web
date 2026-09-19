@@ -221,9 +221,16 @@ class QmkSettings(BasicEditor):
         self.on_change()
 
     def reset_settings(self):
-        if QMessageBox.question(self.widget(), "",
-                                tr("QmkSettings", "Reset all settings to default values?"),
-                                QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+        # a blocking QMessageBox.question() would spin a nested event loop, which the web build cannot do
+        self.dlg_reset = QMessageBox(QMessageBox.Question, "",
+                                     tr("QmkSettings", "Reset all settings to default values?"),
+                                     QMessageBox.Yes | QMessageBox.No)
+        self.dlg_reset.setModal(True)
+        self.dlg_reset.finished.connect(self.on_reset_finished)
+        self.dlg_reset.show()
+
+    def on_reset_finished(self, ret):
+        if ret == QMessageBox.Yes:
             self.keyboard.qmk_settings_reset()
             self.reload_settings()
 
