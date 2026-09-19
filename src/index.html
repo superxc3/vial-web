@@ -461,6 +461,11 @@ body {
     }
 
     window.onerror = function(message, source, lineno, colno, error) {
+        // An error thrown in the worker that runs Vial reaches the page re-thrown as the worker's
+        // ErrorEvent, whose text is "Uncaught [object ErrorEvent]"; report the original message instead.
+        if (error instanceof ErrorEvent && error.message) {
+            message = error.message;
+        }
         alert(message);
     };
 </script>

@@ -98,6 +98,8 @@ class MainWindow(QMainWindow):
 
         self.keymap_editor.layer_name_changed.connect(
             self.rgb_configurator.indicator_widget.on_layer_names_changed)
+        # the load may wait for the user's answer, so the other tabs refresh when it has happened
+        self.keymap_editor.layout_restored.connect(self.rebuild)
 
         self.editors = [(self.keymap_editor, "Keymap"), (self.layout_editor, "Layout"), (self.macro_recorder, "Macros"),
                         (self.rgb_configurator, "Lighting"), (self.tap_dance, "Tap Dance"), (self.combos, "Combos"),
@@ -261,7 +263,6 @@ class MainWindow(QMainWindow):
         been loaded via the JS File System API.
         """
         self.keymap_editor.restore_layout(layout)
-        self.rebuild()
 
     def on_layout_load(self):
         if sys.platform == "emscripten":
@@ -278,7 +279,6 @@ class MainWindow(QMainWindow):
                 with open(dialog.selectedFiles()[0], "rb") as inf:
                     data = inf.read()
                 self.keymap_editor.restore_layout(data)
-                self.rebuild()
 
     def on_layout_save(self):
         if sys.platform == "emscripten":

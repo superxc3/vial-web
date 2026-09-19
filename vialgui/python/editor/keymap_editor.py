@@ -26,6 +26,7 @@ class ClickableWidget(QWidget):
 class KeymapEditor(BasicEditor):
 
     layer_name_changed = pyqtSignal()
+    layout_restored = pyqtSignal()
 
     def __init__(self, layout_editor):
         super().__init__()
@@ -169,16 +170,33 @@ class KeymapEditor(BasicEditor):
     def save_layout(self):
         return self.keyboard.save_layout()
 
+    def layout_matches(self, saved):
+        """ Whether a saved layout has the shape of the connected keyboard: layers, matrix and encoders.
+        The Vial UID is not compared, it changes between firmware versions of the same board. """
+        layout = saved.get("layout", [])
+        encoders = saved.get("encoder_layout", [])
+        return len(layout) == self.keyboard.layers and \
+            all(len(layer) == self.keyboard.rows for layer in layout) and \
+            all(len(row) == self.keyboard.cols for layer in layout for row in layer) and \
+            all(len(layer) == self.keyboard.encoder_count for layer in encoders)
+
     def restore_layout(self, data):
-        if json.loads(data.decode("utf-8")).get("uid") != self.keyboard.keyboard_id:
-            ret = QMessageBox.question(self.widget(), "",
+        if self.layout_matches(json.loads(data.decode("utf-8"))):
+            self.do_restore_layout(data)
+            return
+        # a blocking QMessageBox.question() would spin a nested event loop, which the web build cannot do
+        self.dlg_restore = QMessageBox(QMessageBox.Question, "",
                                        tr("KeymapEditor", "Saved keymap belongs to a different keyboard,"
                                                           " are you sure you want to continue?"),
                                        QMessageBox.Yes | QMessageBox.No)
-            if ret != QMessageBox.Yes:
-                return
+        self.dlg_restore.setModal(True)
+        self.dlg_restore.finished.connect(lambda ret: ret == QMessageBox.Yes and self.do_restore_layout(data))
+        self.dlg_restore.show()
+
+    def do_restore_layout(self, data):
         self.keyboard.restore_layout(data)
         self.refresh_layer_display()
+        self.layout_restored.emit()
 
     def on_any_keycode(self):
         if self.container.active_key is None:
