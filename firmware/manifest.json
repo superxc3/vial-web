@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-01T00:20:45Z",
+  "generated": "2026-11-01T00:42:42Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -265,13 +265,13 @@
     },
     {
       "id": "corneplus2/tps43",
-      "name": "CornePLUS2 - TPS43",
+      "name": "CornePLUS2 (current, with disc) - TPS43",
       "family": "CornePLUS2",
       "trackpad": "TPS43",
       "horizontal": false,
       "batch": "",
-      "batch_no": 11,
-      "batch_label": "CornePLUS2",
+      "batch_no": 12,
+      "batch_label": "CornePLUS2 (current, with disc)",
       "latest": "5.11a",
       "firmware": [
         {
@@ -294,7 +294,8 @@
           "date": "2026-10-11",
           "notes": ""
         }
-      ]
+      ],
+      "changelog_url": "https://xcmkb-docs.gitbook.io/doc/user-manual/corneplus2/firmware-changelog"
     }
   ]
 }

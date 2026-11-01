@@ -23,6 +23,7 @@ from vial_device import VialKeyboard
 # Keep in sync with vial-web/firmware/make-manifest.py
 PRODUCT_RE = re.compile(
     r"^(?P<family>SoflePLUS2?|CornePLUS2?)"
+    r"(?: (?P<year>\(2025\)))?"
     r"(?: (?P<trackpad>TPS43|TPS65))?"
     r"(?: (?P<horizontal>Horizontal))?"
     r" v(?P<version>\d+\.\d+(?:\.\d+)?[a-z]*)"
@@ -44,7 +45,8 @@ _STATUS_STYLES = {
 }
 
 _BATCH_HINT = ("“Batch” is the PCB generation of your keyboard (see your order or the XCMKB docs), "
-               "not the firmware version.")
+               "not the firmware version. CornePLUS2: choose “2025, no disc” if your keyboard has no "
+               "spinning disc, “current, with disc” if it has one.")
 
 _WARNING = ("Updating may reset your keymap. Save your layout first (File → Save current layout…). "
             "Any unsaved changes will be lost.")
@@ -205,7 +207,7 @@ class Updates(BasicEditor):
             return None, None
         for b in self.boards:
             if (b["family"], b["trackpad"], b["horizontal"], b["batch"]) == \
-                    (p["family"], p["trackpad"] or "", bool(p["horizontal"]), p["batch"] or ""):
+                    (p["family"], p["trackpad"] or "", bool(p["horizontal"]), p["batch"] or ("2025" if p["year"] else "")):
                 return b, None
         return None, None
 
@@ -318,7 +320,8 @@ class Updates(BasicEditor):
             vialglue.download_file("firmware/" + fw["file"])
 
     def _on_changelog(self):
-        QDesktopServices.openUrl(QUrl(self.manifest["changelog_url"]))
+        url = (self.board or {}).get("changelog_url") or self.manifest["changelog_url"]
+        QDesktopServices.openUrl(QUrl(url))
 
     # ---- BasicEditor interface ----
 

@@ -26,6 +26,10 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 MANIFEST = os.path.join(HERE, "manifest.json")
 CHANGELOG_URL = "https://xcmkb-docs.gitbook.io/doc/firmware-changelog"
+# per-family changelog pages; a family not listed uses the global CHANGELOG_URL
+FAMILY_CHANGELOG = {
+    "CornePLUS2": "https://xcmkb-docs.gitbook.io/doc/user-manual/corneplus2/firmware-changelog",
+}
 
 UF2_MAGIC0, UF2_MAGIC1, UF2_MAGIC_END = 0x0A324655, 0x9E5D5157, 0x0AB16F30
 RP2040_FAMILY = 0xE48BFF56
@@ -34,6 +38,7 @@ FLASH_BASE, FLASH_MAX = 0x10000000, 0x10000000 + 16 * 1024 * 1024
 # Keep in sync with vialgui/python/editor/updates.py
 PRODUCT_RE = re.compile(
     r"^(?P<family>SoflePLUS2?|CornePLUS2?)"
+    r"(?: (?P<year>\(2025\)))?"
     r"(?: (?P<trackpad>TPS43|TPS65))?"
     r"(?: (?P<horizontal>Horizontal))?"
     r" v(?P<version>\d+\.\d+(?:\.\d+)?[a-z]*)"
@@ -50,7 +55,9 @@ BATCHES = {
     ("SoflePLUS2", "Signature RGB"): ("sofleplus2u", 2, "Batch 2: Signature RGB"),
     ("SoflePLUS2", ""): ("sofleplus2", 3, "Batch 3&4 (Latest)"),
     ("CornePLUS", ""): ("corneplus", 10, "CornePLUS"),
-    ("CornePLUS2", ""): ("corneplus2", 11, "CornePLUS2"),
+    # the 2025 PCB has no disc and the split TX on GP8; the product string says "(2025)"
+    ("CornePLUS2", "2025"): ("corneplus2", 11, "CornePLUS2 (2025, no disc)"),
+    ("CornePLUS2", ""): ("corneplus2", 12, "CornePLUS2 (current, with disc)"),
 }
 
 
@@ -116,7 +123,7 @@ def main():
             problems.append("{}: {}".format(name, e))
             continue
         p = PRODUCT_RE.match(product).groupdict()
-        family, batch = p["family"], p["batch"] or ""
+        family, batch = p["family"], p["batch"] or ("2025" if p["year"] else "")
         if (family, batch) not in BATCHES:
             problems.append("{}: no batch mapping for {!r} {!r}".format(name, family, batch))
             continue
@@ -125,7 +132,7 @@ def main():
         if not name.startswith("xcmkb_{}_".format(kb_dir)) and name != "xcmkb_{}.uf2".format(kb_dir):
             problems.append("{}: product string {!r} says {} but the file name does not".format(name, product, kb_dir))
         trackpad = (p["trackpad"] or "").lower()
-        board_id = kb_dir + ("/" + trackpad + ("h" if p["horizontal"] else "") if trackpad else "")
+        board_id = kb_dir + ("-2025" if batch == "2025" else "") + ("/" + trackpad + ("h" if p["horizontal"] else "") if trackpad else "")
         hardware = " ".join(x for x in [p["trackpad"], p["horizontal"]] if x)
         board = boards.setdefault(board_id, {
             "id": board_id,
@@ -140,6 +147,8 @@ def main():
             "latest": "",
             "firmware": [],
         })
+        if family in FAMILY_CHANGELOG:
+            board["changelog_url"] = FAMILY_CHANGELOG[family]
         with open(path, "rb") as f:
             data = f.read()
         old = prev_entries.get(name, {})
