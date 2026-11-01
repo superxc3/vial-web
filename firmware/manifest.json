@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-10-11T02:18:11Z",
+  "generated": "2026-11-01T00:20:45Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -272,8 +272,18 @@
       "batch": "",
       "batch_no": 11,
       "batch_label": "CornePLUS2",
-      "latest": "5.11",
+      "latest": "5.11a",
       "firmware": [
+        {
+          "version": "5.11a",
+          "beta": false,
+          "product": "CornePLUS2 TPS43 v5.11a",
+          "file": "xcmkb_corneplus2_511a.uf2",
+          "size": 204288,
+          "sha256": "7c67b738ea31ce8b938edfd60e88d8af5736ef10f57ff32cd605707d45232715",
+          "date": "2026-10-19",
+          "notes": ""
+        },
         {
           "version": "5.11",
           "beta": false,
