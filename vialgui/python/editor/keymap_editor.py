@@ -74,9 +74,10 @@ class KeymapEditor(BasicEditor):
         layer_name_row.addStretch()
         # Reset layout sits at the right end of this bottom row (always shown with a keyboard)
         self.btn_reset_layout = QPushButton(tr("KeymapEditor", "Reset layout..."))
-        self.btn_reset_layout.setToolTip(tr("KeymapEditor",
+        self._DEFAULT_RESET_TIP = tr("KeymapEditor",
             "Restore this keyboard's default keymap from the firmware (all layers). "
-            "Macros, combos, tap dance and lighting are kept."))
+            "Macros, combos, tap dance and lighting are kept.")
+        self.btn_reset_layout.setToolTip(self._DEFAULT_RESET_TIP)
         self.btn_reset_layout.clicked.connect(self.on_reset_layout)
         self.btn_reset_layout.setFixedWidth(140)
         layer_name_row.addWidget(self.btn_reset_layout)
@@ -154,6 +155,12 @@ class KeymapEditor(BasicEditor):
         self.layer_name_widget.setVisible(self.valid())
         if self.valid():
             self.keyboard = device.keyboard
+            if self._factory_layout() is not None:
+                self.btn_reset_layout.setToolTip(tr("KeymapEditor",
+                    "Restore this keyboard's factory layout. Replaces everything: all layers, "
+                    "macros, combos, tap dance, key overrides, lighting, OLED names and trackpad settings."))
+            else:
+                self.btn_reset_layout.setToolTip(self._DEFAULT_RESET_TIP)
 
             # get number of layers
             self.rebuild_layers()
