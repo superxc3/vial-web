@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-01T00:42:42Z",
+  "generated": "2026-11-01T01:21:58Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -262,6 +262,30 @@
           "notes": ""
         }
       ]
+    },
+    {
+      "id": "corneplus2-2025/tps43",
+      "name": "CornePLUS2 (2025, no disc) - TPS43",
+      "family": "CornePLUS2",
+      "trackpad": "TPS43",
+      "horizontal": false,
+      "batch": "2025",
+      "batch_no": 11,
+      "batch_label": "CornePLUS2 (2025, no disc)",
+      "latest": "5.11a",
+      "firmware": [
+        {
+          "version": "5.11a",
+          "beta": false,
+          "product": "CornePLUS2 (2025) TPS43 v5.11a",
+          "file": "xcmkb_corneplus2_511a-2025.uf2",
+          "size": 203264,
+          "sha256": "928896818d0a928e7127c489a372e5a778c162075274e6fafd276635cc6b9c3a",
+          "date": "2026-11-01",
+          "notes": ""
+        }
+      ],
+      "changelog_url": "https://xcmkb-docs.gitbook.io/doc/user-manual/corneplus2/firmware-changelog"
     },
     {
       "id": "corneplus2/tps43",
