@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 import json
+import os
 
 from PyQt5.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QMessageBox, QWidget, \
     QSizePolicy
@@ -207,8 +208,38 @@ class KeymapEditor(BasicEditor):
         self.refresh_layer_display()
         self.layout_restored.emit()
 
+    # Families whose Reset layout restores a complete factory .vil (resets/<file>) instead of
+    # only the compiled-in keymap. Matched against the start of the USB product string.
+    FACTORY_LAYOUTS = (("CornePLUS", "corneplus2.vil"),)
+    appctx = None
+
+    def _factory_layout(self):
+        """The factory .vil (bytes) for the connected keyboard's family, or None."""
+        product = (getattr(self.device, "desc", None) or {}).get("product_string", "") or ""
+        for prefix, name in self.FACTORY_LAYOUTS:
+            if product.startswith(prefix) and self.appctx is not None:
+                try:
+                    with open(self.appctx.get_resource("resets/" + name), "rb") as inf:
+                        return inf.read()
+                except (OSError, Exception):
+                    return None
+        return None
+
     def on_reset_layout(self):
         if self.keyboard is None:
+            return
+        factory = self._factory_layout()
+        if factory is not None:
+            self.dlg_reset = QMessageBox(QMessageBox.Warning, "",
+                                         tr("KeymapEditor", "Reset to the factory layout?\n\n"
+                                                            "Everything is replaced by the factory setup: layers, "
+                                                            "macros, combos, tap dance, key overrides, lighting, "
+                                                            "OLED names and trackpad settings.\n\n"
+                                                            "Tip: save your layout first (File -> Save current layout)."),
+                                         QMessageBox.Yes | QMessageBox.No)
+            self.dlg_reset.setModal(True)
+            self.dlg_reset.finished.connect(lambda ret: ret == QMessageBox.Yes and self.do_restore_layout(factory))
+            self.dlg_reset.show()
             return
         # non-blocking confirm, same reason as restore_layout(): no nested event loop on the web build
         self.dlg_reset = QMessageBox(QMessageBox.Warning, "",

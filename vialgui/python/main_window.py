@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
 
         self.layout_editor = LayoutEditor()
         self.keymap_editor = KeymapEditor(self.layout_editor)
+        self.keymap_editor.appctx = appctx
         self.firmware_flasher = FirmwareFlasher(self)
         self.macro_recorder = MacroRecorder()
         self.tap_dance = TapDance()

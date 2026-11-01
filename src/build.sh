@@ -28,6 +28,9 @@ cp ../simpleeval.py usr/local/lib/python3.11
 # resources; the .uf2 files stay outside the bundle and are fetched/downloaded as plain files.
 cp ../../firmware/manifest.json usr/local/firmware_manifest.json
 # Demo mode (*Try the demo* on the start page): recorded boards, made by demo/capture-demo.py
+# Reset layout: per-family factory layouts (.vil), keyed by the USB product string prefix
+mkdir -p usr/local/resets
+cp ../../vialgui/resets/*.vil usr/local/resets/
 mkdir -p usr/local/demo
 cp ../../demo/*.json usr/local/demo/
 emcc \
