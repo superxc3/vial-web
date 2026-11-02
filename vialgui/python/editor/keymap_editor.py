@@ -217,7 +217,7 @@ class KeymapEditor(BasicEditor):
 
     # Families whose Reset layout restores a complete factory .vil (resets/<file>) instead of
     # only the compiled-in keymap. Matched against the start of the USB product string.
-    FACTORY_LAYOUTS = (("CornePLUS", "corneplus2.vil"),)
+    FACTORY_LAYOUTS = (("CornePLUS", "corneplus2.vil"), ("SoflePLUS", "sofleplus2.vil"))
     appctx = None
 
     def _factory_layout(self):
