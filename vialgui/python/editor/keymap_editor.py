@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 import json
 import os
+import re
 
 from PyQt5.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QMessageBox, QWidget, \
     QSizePolicy
@@ -216,20 +217,31 @@ class KeymapEditor(BasicEditor):
         self.layout_restored.emit()
 
     # Families whose Reset layout restores a complete factory .vil (resets/<file>) instead of
-    # only the compiled-in keymap. Matched against the start of the USB product string.
-    FACTORY_LAYOUTS = (("CornePLUS", "corneplus2.vil"), ("SoflePLUS", "sofleplus2.vil"))
+    # only the compiled-in keymap. Matched against the USB product string. SoflePLUS2 is the
+    # current batch only (TPS43/TPS65/Horizontal, v5.10+, no batch word): SoflePLUS1 and the
+    # Legendary / Signature batches have other LED maps and keep the keymap-only reset.
+    FACTORY_LAYOUTS = (
+        (re.compile(r"^CornePLUS"), "corneplus2.vil"),
+        (re.compile(r"^SoflePLUS2(?: TPS(?:43|65))?(?: Horizontal)? v(\d+)\.(\d+)[a-z]*$"), "sofleplus2.vil"),
+    )
     appctx = None
 
     def _factory_layout(self):
-        """The factory .vil (bytes) for the connected keyboard's family, or None."""
+        """The factory .vil (bytes) for the connected keyboard's family, or None. Also None when the
+        file's shape (layers, matrix, encoders) is not the connected keyboard's."""
         product = (getattr(self.device, "desc", None) or {}).get("product_string", "") or ""
-        for prefix, name in self.FACTORY_LAYOUTS:
-            if product.startswith(prefix) and self.appctx is not None:
-                try:
-                    with open(self.appctx.get_resource("resets/" + name), "rb") as inf:
-                        return inf.read()
-                except (OSError, Exception):
-                    return None
+        for pattern, name in self.FACTORY_LAYOUTS:
+            m = pattern.match(product)
+            if not m or self.appctx is None:
+                continue
+            if m.groups() and (int(m.group(1)), int(m.group(2))) < (5, 10):
+                continue
+            try:
+                with open(self.appctx.get_resource("resets/" + name), "rb") as inf:
+                    data = inf.read()
+                return data if self.layout_matches(json.loads(data.decode("utf-8"))) else None
+            except Exception:
+                return None
         return None
 
     def on_reset_layout(self):
