@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-13T08:24:47Z",
+  "generated": "2026-11-13T08:55:19Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -181,7 +181,7 @@
           "product": "SoflePLUS2 TPS43 v5.11b",
           "file": "xcmkb_sofleplus2_tps43-v5.11b.uf2",
           "size": 211968,
-          "sha256": "669ff9dda51bc854554fbdfbd1d075152c30bd494468fa1a20d79261f81bbe1a",
+          "sha256": "7f3f65673e5a05fd896f28254b7c73900c4879ed42a6fdb1ce44075179ad8375",
           "date": "2026-11-13",
           "notes": ""
         },
@@ -224,7 +224,7 @@
           "product": "SoflePLUS2 TPS65 v5.11b",
           "file": "xcmkb_sofleplus2_tps65-v5.11b.uf2",
           "size": 206336,
-          "sha256": "96a04f63808b899920218baf7c3cb7eec80bb84eb0ef3646028644ff285836bc",
+          "sha256": "db54e1b7b93b836db2550bfb008287f2f753a525327a253cb911da6a5374ebbe",
           "date": "2026-11-13",
           "notes": ""
         },
