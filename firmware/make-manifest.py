@@ -27,6 +27,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MANIFEST = os.path.join(HERE, "manifest.json")
 CHANGELOG_URL = "https://xcmkb-docs.gitbook.io/doc/firmware-changelog"
 # per-family changelog pages; a family not listed uses the global CHANGELOG_URL
+# per-batch pages win over the family page: (family, batch words) as in BATCHES. Only the
+# batches whose GitHub readme is the client-facing changelog; the rest fall back to GitBook.
+BATCH_CHANGELOG = {
+    ("SoflePLUS2", ""): "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/sofleplus2",
+}
 FAMILY_CHANGELOG = {
     # the readme there is the client-facing changelog (keyboards/xcmkb/corneplus2/readme.md)
     "CornePLUS2": "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/corneplus2",
@@ -148,7 +153,9 @@ def main():
             "latest": "",
             "firmware": [],
         })
-        if family in FAMILY_CHANGELOG:
+        if (family, batch) in BATCH_CHANGELOG:
+            board["changelog_url"] = BATCH_CHANGELOG[(family, batch)]
+        elif family in FAMILY_CHANGELOG:
             board["changelog_url"] = FAMILY_CHANGELOG[family]
         with open(path, "rb") as f:
             data = f.read()

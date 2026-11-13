@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-13T09:07:31Z",
+  "generated": "2026-11-13T09:19:39Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -205,7 +205,8 @@
           "date": "2026-09-16",
           "notes": ""
         }
-      ]
+      ],
+      "changelog_url": "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/sofleplus2"
     },
     {
       "id": "sofleplus2/tps65",
@@ -248,7 +249,8 @@
           "date": "2026-09-16",
           "notes": ""
         }
-      ]
+      ],
+      "changelog_url": "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/sofleplus2"
     },
     {
       "id": "sofleplus2/tps65h",
@@ -291,7 +293,8 @@
           "date": "2026-09-08",
           "notes": ""
         }
-      ]
+      ],
+      "changelog_url": "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/sofleplus2"
     },
     {
       "id": "corneplus2-2025/tps43",
