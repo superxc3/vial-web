@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-13T07:33:01Z",
+  "generated": "2026-11-13T08:24:47Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -173,8 +173,18 @@
       "batch": "",
       "batch_no": 3,
       "batch_label": "Batch 3&4 (Latest)",
-      "latest": "5.11",
+      "latest": "5.11b",
       "firmware": [
+        {
+          "version": "5.11b",
+          "beta": false,
+          "product": "SoflePLUS2 TPS43 v5.11b",
+          "file": "xcmkb_sofleplus2_tps43-v5.11b.uf2",
+          "size": 211968,
+          "sha256": "669ff9dda51bc854554fbdfbd1d075152c30bd494468fa1a20d79261f81bbe1a",
+          "date": "2026-11-13",
+          "notes": ""
+        },
         {
           "version": "5.11",
           "beta": false,
@@ -206,8 +216,18 @@
       "batch": "",
       "batch_no": 3,
       "batch_label": "Batch 3&4 (Latest)",
-      "latest": "5.11",
+      "latest": "5.11b",
       "firmware": [
+        {
+          "version": "5.11b",
+          "beta": false,
+          "product": "SoflePLUS2 TPS65 v5.11b",
+          "file": "xcmkb_sofleplus2_tps65-v5.11b.uf2",
+          "size": 206336,
+          "sha256": "96a04f63808b899920218baf7c3cb7eec80bb84eb0ef3646028644ff285836bc",
+          "date": "2026-11-13",
+          "notes": ""
+        },
         {
           "version": "5.11",
           "beta": false,
@@ -239,8 +259,18 @@
       "batch": "",
       "batch_no": 3,
       "batch_label": "Batch 3&4 (Latest)",
-      "latest": "5.11h",
+      "latest": "5.11hb",
       "firmware": [
+        {
+          "version": "5.11hb",
+          "beta": false,
+          "product": "SoflePLUS2 TPS65 Horizontal v5.11hb",
+          "file": "xcmkb_sofleplus2_tps65h-v5.11hb.uf2",
+          "size": 206336,
+          "sha256": "94234cf26c39682406031050abcc150da0b303b68c3315a7a389756a902fe227",
+          "date": "2026-11-13",
+          "notes": ""
+        },
         {
           "version": "5.11h",
           "beta": false,
