@@ -28,7 +28,8 @@ MANIFEST = os.path.join(HERE, "manifest.json")
 CHANGELOG_URL = "https://xcmkb-docs.gitbook.io/doc/firmware-changelog"
 # per-family changelog pages; a family not listed uses the global CHANGELOG_URL
 FAMILY_CHANGELOG = {
-    "CornePLUS2": "https://xcmkb-docs.gitbook.io/doc/user-manual/corneplus2/firmware-changelog",
+    # the readme there is the client-facing changelog (keyboards/xcmkb/corneplus2/readme.md)
+    "CornePLUS2": "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/corneplus2",
 }
 
 UF2_MAGIC0, UF2_MAGIC1, UF2_MAGIC_END = 0x0A324655, 0x9E5D5157, 0x0AB16F30

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-13T07:32:41Z",
+  "generated": "2026-11-13T07:33:01Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -295,7 +295,7 @@
           "notes": ""
         }
       ],
-      "changelog_url": "https://xcmkb-docs.gitbook.io/doc/user-manual/corneplus2/firmware-changelog"
+      "changelog_url": "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/corneplus2"
     },
     {
       "id": "corneplus2/tps43",
@@ -339,7 +339,7 @@
           "notes": ""
         }
       ],
-      "changelog_url": "https://xcmkb-docs.gitbook.io/doc/user-manual/corneplus2/firmware-changelog"
+      "changelog_url": "https://github.com/superxc3/vial-qmk/tree/xcmkb/keyboards/xcmkb/corneplus2"
     }
   ]
 }
