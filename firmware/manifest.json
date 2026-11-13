@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-13T08:55:19Z",
+  "generated": "2026-11-13T09:07:31Z",
   "changelog_url": "https://xcmkb-docs.gitbook.io/doc/firmware-changelog",
   "boards": [
     {
@@ -267,7 +267,7 @@
           "product": "SoflePLUS2 TPS65 Horizontal v5.11hb",
           "file": "xcmkb_sofleplus2_tps65h-v5.11hb.uf2",
           "size": 206336,
-          "sha256": "94234cf26c39682406031050abcc150da0b303b68c3315a7a389756a902fe227",
+          "sha256": "408b55dc5f451e15a73ed8688235bdde1abe11e8976e0317761e9c2df54c7789",
           "date": "2026-11-13",
           "notes": ""
         },
