@@ -6,6 +6,7 @@ instructions to flash it. The board and its version come from the USB product st
 announces (see the naming rule and PRODUCT_RE in vial-web/firmware/make-manifest.py — keep them in
 sync); the catalogue is firmware_manifest.json, preloaded by vial-web's build.
 """
+import html
 import json
 import os
 import re
@@ -45,11 +46,27 @@ _STATUS_STYLES = {
 }
 
 _BATCH_HINT = ("“Batch” is the PCB generation of your keyboard (see your order or the XCMKB docs), "
-               "not the firmware version. CornePLUS2: choose “2025, no disc” if your keyboard has no "
-               "spinning disc, “current, with disc” if it has one.")
+               "not the firmware version. Not sure which SoflePLUS version you have? Check your batch in the "
+               "<a href=\"{url}\">firmware changelog</a>. CornePLUS2: choose “2025, no disc” if your keyboard "
+               "has no spinning disc, “current, with disc” if it has one.")
+
+_FALLBACK_CHANGELOG = "https://xcmkb-docs.gitbook.io/doc/firmware-changelog"
+
+_OVERRIDE_NOTE = ("Your keyboard reports “{product}”, but you chose “{board}”. Update now will replace the "
+                  "firmware with the version you select. If a flash goes wrong it is always recoverable: double-tap the reset "
+                  "button and write the correct file to the RPI-RP2 drive.")
 
 _WARNING = ("Updating may reset your keymap. Save your layout first (File → Save current layout…). "
             "Any unsaved changes will be lost.")
+
+_BOOT_TIP = ("Click Update now to update. If the keyboard does not restart into update mode by itself, press the "
+             "physical reset button on the bottom of your keyboard twice quickly. On firmware v5.11b or newer "
+             "leave about half a second between the two presses (a very fast double press only restarts it); "
+             "older firmware needs a quick double press. The RPI-RP2 drive should appear.")
+
+_CHORD_TIP = ("If it does not, hold the three outer keys of the top row on the half the USB cable goes into "
+              "for about 3 seconds (left half: Esc or `, 1, 2; right half: the three keys at the outer edge "
+              "of the top row, e.g. Backspace or -, 0, 9). No need to unplug.")
 
 _STEPS = """Both halves must run the same version.
 
@@ -108,6 +125,9 @@ class Updates(BasicEditor):
         self.board = None        # manifest board the keyboard was matched (or chosen) to
         self.entry = None        # manifest firmware entry of the running version, if catalogued
         self.detected = False    # board came from the product string, not from the combo box
+        self.override = False    # client asked to choose the board themselves (wrong-version troubleshooting)
+        self.auto_board = None   # what the product string matched, kept while overriding
+        self.auto_entry = None
         self.update_available = False
 
         inner = QVBoxLayout()
@@ -131,12 +151,17 @@ class Updates(BasicEditor):
         self.combo_board.currentIndexChanged.connect(self._on_board_chosen)
         self.combo_version = QComboBox()
         self.combo_version.currentIndexChanged.connect(lambda _: self._show_notes())
+        self.lbl_hint = _wrapped()
+        self.lbl_hint.setTextFormat(Qt.RichText)
+        self.lbl_hint.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.lbl_hint.setText(tr("Updates", _BATCH_HINT).format(url=html.escape(self._changelog_url(), quote=True)))
+        self.lbl_hint.linkActivated.connect(lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.rows = {}
         for r, (key, caption, widget) in enumerate([
             ("keyboard", "Your keyboard:", self.lbl_keyboard),
             ("board", "Board:", self.lbl_board),
             ("choose", "Choose your board:", self.combo_board),
-            ("hint", "", _wrapped(tr("Updates", _BATCH_HINT))),
+            ("hint", "", self.lbl_hint),
             ("latest", "Latest firmware:", self.lbl_latest),
             ("status", "Status:", self.lbl_status),
             ("version", "Version to download:", self.combo_version),
@@ -160,13 +185,18 @@ class Updates(BasicEditor):
         self.btn_download.clicked.connect(self._on_download)
         self.btn_changelog = QPushButton(tr("Updates", "View changelog"))
         self.btn_changelog.clicked.connect(self._on_changelog)
-        self.btn_changelog.setEnabled(bool(self.manifest and self.manifest.get("changelog_url")))
+        self.btn_troubleshoot = QPushButton()
+        self.btn_troubleshoot.clicked.connect(self._on_troubleshoot)
         buttons.addWidget(self.btn_download)
         buttons.addWidget(self.btn_changelog)
+        buttons.addWidget(self.btn_troubleshoot)
         buttons.addStretch()
         inner.addLayout(buttons)
 
         inner.addWidget(_wrapped("⚠ " + tr("Updates", _WARNING), bold=True))
+        inner.addWidget(_wrapped(tr("Updates", _BOOT_TIP)))
+        self.lbl_chord = _wrapped(tr("Updates", _CHORD_TIP))
+        inner.addWidget(self.lbl_chord)
 
         steps_group = QGroupBox(tr("Updates", "How to update"))
         steps_layout = QVBoxLayout()
@@ -190,6 +220,13 @@ class Updates(BasicEditor):
                 return json.load(inf)
         except (OSError, ValueError):
             return None
+
+    def _changelog_url(self):
+        return (self.manifest or {}).get("changelog_url") or _FALLBACK_CHANGELOG
+
+    def _manual(self):
+        """The board list is shown: detection failed, or the client is troubleshooting a wrong version."""
+        return not self.detected or self.override
 
     # ---- detection ----
 
@@ -258,7 +295,10 @@ class Updates(BasicEditor):
                     text += "  ← latest"
                 self.combo_version.addItem(text, fw["version"])
             self.combo_version.setCurrentIndex(max(0, self.combo_version.findData(latest)))
-            if self.entry and running == latest:
+            if self.override and self.auto_board is not None and self.board is not self.auto_board:
+                self._set_status("update", tr("Updates", _OVERRIDE_NOTE).format(
+                    product=self.product, board=self.board["name"]))
+            elif self.entry and running == latest:
                 self._set_status("ok", tr("Updates", "Up to date (v{})").format(running))
             elif self.entry:
                 self.update_available = True
@@ -278,20 +318,36 @@ class Updates(BasicEditor):
 
         for key in ("choose", "hint"):
             for w in self.rows[key]:
-                w.setVisible(not self.detected)
+                w.setVisible(self._manual())
         for w in self.rows["board"]:
             w.setVisible(self.board is not None)
         self.btn_update.setEnabled(self.board is not None)
         self.btn_download.setEnabled(self.board is not None)
+        # the 3-key hold exists on SoflePLUS2 firmware only (CornePLUS2 has no such trigger)
+        self.lbl_chord.setVisible(bool(self.board) and self.board["family"] == "SoflePLUS2")
+        self.btn_troubleshoot.setVisible(self.auto_board is not None)
+        self.btn_troubleshoot.setText(tr("Updates", "Use detected board") if self.override
+                                      else tr("Updates", "Wrong version? Troubleshoot"))
+        self.btn_troubleshoot.setToolTip(tr("Updates", "Flashed the wrong variant? Choose your board yourself "
+                                                       "and flash the correct firmware."))
         self._show_notes()
 
     # ---- slots ----
 
     def _on_board_chosen(self, index):
-        if index < 0 or self.detected:
+        if index < 0 or not self._manual():
             return
         self.board = self.boards[index]
-        self.entry = None
+        self.entry = self.auto_entry if self.board is self.auto_board else None
+        self._refresh()
+
+    def _on_troubleshoot(self):
+        self.override = not self.override
+        if not self.override:
+            self.board, self.entry = self.auto_board, self.auto_entry
+        self.combo_board.blockSignals(True)
+        self.combo_board.setCurrentIndex(self.boards.index(self.board) if self.board else -1)
+        self.combo_board.blockSignals(False)
         self._refresh()
 
     def _on_update_now(self):
@@ -320,7 +376,7 @@ class Updates(BasicEditor):
             vialglue.download_file("firmware/" + fw["file"])
 
     def _on_changelog(self):
-        url = (self.board or {}).get("changelog_url") or self.manifest["changelog_url"]
+        url = (self.board or {}).get("changelog_url") or self._changelog_url()
         QDesktopServices.openUrl(QUrl(url))
 
     # ---- BasicEditor interface ----
@@ -338,6 +394,8 @@ class Updates(BasicEditor):
             return
         self.product = device.desc.get("product_string", "") or ""
         self.board, self.entry = self._detect(self.product)
+        self.auto_board, self.auto_entry = self.board, self.entry
+        self.override = False
         self.detected = self.board is not None
         self.combo_board.blockSignals(True)
         self.combo_board.setCurrentIndex(self.boards.index(self.board) if self.detected else -1)
