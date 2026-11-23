@@ -638,14 +638,20 @@ class Updates(BasicEditor):
     def _on_mirror(self):
         if self.keyboard is None:
             return
-        MirrorFixDialog(self.keyboard, self.product, self.btn_mirror.window()).exec_()
+        # open(), never exec_(): the web build has no nested event loop (no Asyncify), so a blocking
+        # dialog aborts with "compile with async support"
+        self._dialog = MirrorFixDialog(self.keyboard, self.product, self.btn_mirror.window())
+        self._dialog.open()
 
     def _on_update_now(self):
         fw = self._selected_firmware()
         if not fw or sys.platform != "emscripten" or self.keyboard is None:
             return
-        if SaveLayoutCheck(self.keyboard, self.btn_update.window()).exec_() != QDialog.Accepted:
-            return
+        self._dialog = SaveLayoutCheck(self.keyboard, self.btn_update.window())
+        self._dialog.accepted.connect(lambda: self._start_flash(fw))
+        self._dialog.open()     # see _on_mirror: never exec_() on the web
+
+    def _start_flash(self, fw):
         import vialglue
         # the 3-key hold is a feature of the firmware running NOW, so it follows the detected board
         chord = _has_chord(self.auto_board, self._running_version())
