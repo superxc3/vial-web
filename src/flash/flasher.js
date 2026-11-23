@@ -24,6 +24,7 @@ const WRITE_CHUNK = 16 * PAGE_SIZE;     // 4 KB per PICOBOOT write: ~25 progress
 const FLASH_LIMIT = 16 * 1024 * 1024;   // largest RP2040 flash
 const STEP_TIMEOUT = 10000;             // per USB step
 const REBOOT_WAIT = 4000;               // for the keyboard to drop off HID after Vial's reboot request
+const HOLD_WAIT = 20000;                // ...or after the client was asked to hold the 3 corner keys
 const BOOTSEL_WAIT = 4000;              // for a permitted RP2 Boot device to appear afterwards
 const TARGET = new Target("RP2040");
 const USB_OK_KEY = "xcmkb_flash_usb_ok";   // set once the USB route has succeeded in this browser
@@ -31,15 +32,19 @@ const USB_OK_KEY = "xcmkb_flash_usb_ok";   // set once the USB route has succeed
 const TEXT = {
     prepare: "Preparing the firmware file…",
     rebooting: "Asking the keyboard to restart into update mode…",
+    hold: "Hold the 3 top corner keys now, on the half the USB cable is plugged into, for about 3 seconds.",
     waiting: "Waiting for the keyboard to reappear in update mode…",
-    bootsel: "Put the keyboard into update mode: double-tap the reset button on the half that has the " +
-             "USB cable. Its LED starts blinking, the keyboard disappears from Vial and a drive named " +
+    bootsel: "Put the keyboard into update mode: double-press the reset button on the bottom of the half " +
+             "that has the USB cable, about half a second apart. Its LED starts blinking, the keyboard disappears from Vial and a drive named " +
              "RPI-RP2 appears on your computer. Then click Write to RPI-RP2 drive (no driver needed): a " +
              "folder dialog opens \u2014 the firmware is already loaded, so just select the RPI-RP2 drive " +
              "itself (This PC \u2192 RPI-RP2) and click Select Folder, then Allow. Or use Select keyboard " +
              "(USB) and choose \u201cRP2 Boot\u201d.",
-    other: "Unplug the USB cable and plug it directly into the OTHER half. Double-tap that half's reset " +
+    other: "Unplug the USB cable and plug it directly into the OTHER half. Double-press that half's reset " +
            "button (LED blinking), then click Write to RPI-RP2 drive or Select keyboard (USB) again.",
+    other_hold: "Unplug the USB cable and plug it directly into the OTHER half. Hold that half's 3 top corner " +
+                "keys for about 3 seconds (or double-press its reset button), then click Write to RPI-RP2 drive " +
+                "or Select keyboard (USB) again.",
     ready: "The keyboard is in update mode (LED blinking). Click Write to RPI-RP2 drive (no driver needed: " +
            "select the RPI-RP2 drive itself in the folder dialog) or Select keyboard (USB).",
     drive: "In the folder dialog select the RPI-RP2 drive itself (This PC \u2192 RPI-RP2), click Select " +
@@ -51,12 +56,15 @@ const TEXT = {
 
 let ui = null;
 let lastTrace = "";
+let showKeys = false;   // the running firmware knows the 3-key hold: show the picture with these steps
+const KEY_STEPS = ["hold", "other_hold"];
 
 function els() {
     if (!ui) {
         ui = {};
         for (const id of ["flash", "flash_title", "flash_file", "flash_step", "flash_progress", "flash_log",
-                          "flash_select", "flash_drive", "flash_other", "flash_finish", "flash_cancel"]) {
+                          "flash_select", "flash_drive", "flash_other", "flash_finish", "flash_cancel",
+                          "flash_keys"]) {
             ui[id] = document.getElementById(id);
         }
     }
@@ -86,7 +94,34 @@ function captureConsole(run) {
 }
 
 function setStep(key) {
-    els().flash_step.textContent = TEXT[key];
+    const u = els();
+    u.flash_step.textContent = TEXT[key];
+    u.flash_keys.style.display = showKeys && KEY_STEPS.includes(key) ? "" : "none";
+}
+
+// Two small halves, the 3 outer top-row keys lit on each, "or" between: where to hold
+function drawKeys() {
+    const u = els();
+    if (u.flash_keys.firstChild) {
+        return;
+    }
+    const size = 16, gap = 3, stagger = [3, 3, 0, -2, 0, 1];
+    const half = (right) => {
+        let s = '<svg width="116" height="80" viewBox="0 0 116 80" aria-hidden="true">';
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 6; c++) {
+                const col = right ? 5 - c : c;      // right half is mirrored: outer edge on the right
+                const lit = r === 0 && (right ? c >= 3 : c <= 2);
+                s += '<rect x="' + (c * (size + gap) + 1) + '" y="' + (r * (size + gap) + stagger[col] + 4) +
+                     '" width="' + size + '" height="' + size + '" rx="3" ' +
+                     (lit ? 'fill="#e6a817"' : 'fill="none" stroke="#8a8a8a" stroke-width="1"') + '/>';
+            }
+        }
+        return s + "</svg>";
+    };
+    u.flash_keys.innerHTML =
+        '<div class="flash_keys_row">' + half(false) + '<span>or</span>' + half(true) + "</div>" +
+        '<div class="flash_keys_caption"><span>Left: ` 1 2</span><span>Right: 9 0 -</span></div>';
 }
 
 function setProgress(fraction) {
@@ -270,14 +305,15 @@ async function permittedDevice() {
 // jump). Wait for it to drop off HID, then for a permitted RP2 Boot device; null if either does
 // not happen, in which case the user takes over with double-tap reset and the chooser.
 async function waitForAutomaticBootsel(requestedAt) {
-    setStep("rebooting");
+    setStep(showKeys ? "hold" : "rebooting");
     const gone = () => window.g_hid_disconnected_at && window.g_hid_disconnected_at >= requestedAt - 1000;
-    const deadline = requestedAt + REBOOT_WAIT;
+    const deadline = Date.now() + (showKeys ? HOLD_WAIT : REBOOT_WAIT);
     while (Date.now() < deadline && !gone()) {
         await sleep(200);
     }
     if (!gone()) {
-        log("The keyboard did not restart by itself (its firmware predates that feature) \u2014 double-tap reset instead");
+        log(showKeys ? "The keyboard did not enter update mode \u2014 double-press reset instead"
+                     : "The keyboard did not restart by itself (its firmware predates that feature) \u2014 double-press reset instead");
         return { rebooted: false, dev: null };
     }
     log("Keyboard left normal mode, looking for the bootloader…");
@@ -401,6 +437,9 @@ export async function startFlash(entry) {
     u.flash_title.textContent = "Firmware update — " + (entry.board || "");
     u.flash_file.textContent = "v" + entry.version + "  (" + entry.file + ")";
     u.flash_log.textContent = "";
+    showKeys = !!entry.chord;
+    drawKeys();
+    u.flash_keys.style.display = "none";
     u.flash.style.display = "";
     showButtons(["flash_cancel"]);
 
@@ -440,7 +479,7 @@ export async function startFlash(entry) {
     u.flash_other.onclick = () => {
         log("--- other half ---");
         setProgress(null);
-        setStep("other");
+        setStep(showKeys ? "other_hold" : "other");
         showButtons(["flash_drive", "flash_select", "flash_cancel"]);
     };
 

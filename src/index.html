@@ -101,6 +101,23 @@ body {
 #flash_step {
     min-height: 3em;
 }
+#flash_keys {
+    margin: -0.5em 0 0.75em 0;
+}
+.flash_keys_row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1em;
+    color: #bbb;
+}
+.flash_keys_caption {
+    display: flex;
+    justify-content: center;
+    gap: 5.5em;
+    color: #bbb;
+    font-size: 85%;
+}
 #flash_progress {
     width: 100%;
     height: 1.2em;
@@ -178,6 +195,7 @@ body {
         <h2 id="flash_title">Firmware update</h2>
         <div id="flash_file"></div>
         <p id="flash_step"></p>
+        <div id="flash_keys" style="display:none"></div>
         <progress id="flash_progress" value="0" max="1"></progress>
         <div id="flash_log"></div>
         <div id="flash_buttons">
@@ -251,6 +269,9 @@ body {
             if (!g_demo) {
                 flashFirmware(e.data.entry);
             }
+        } else if (e.data.cmd == "reload_page") {
+            // the keyboard restarted on purpose (Keymap mirrored? fix): start over so Vial reconnects
+            location.reload();
         } else if (e.data.cmd == "play_sound") {
             playSound(e.data.name);
         }

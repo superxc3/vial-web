@@ -204,6 +204,15 @@ static PyObject* vialglue_flash_firmware(PyObject *self, PyObject *args) {
     return PyLong_FromLong(0);
 }
 
+static PyObject* vialglue_reload_page(PyObject *self, PyObject *args) {
+    // Reload the page so Vial can reconnect after the keyboard restarted; see index.html
+    EM_ASM({
+        postMessage({cmd: "reload_page"});
+    });
+
+    return PyLong_FromLong(0);
+}
+
 static PyObject* vialglue_play_sound(PyObject *self, PyObject *args) {
     // Short feedback tone played by the page with WebAudio (matrix tester); see index.html
     const char *name;
@@ -233,6 +242,7 @@ static PyMethodDef VialglueMethods[] = {
     {"download_file",  vialglue_download_file, METH_VARARGS, ""},
     {"flash_firmware",  vialglue_flash_firmware, METH_VARARGS, ""},
     {"play_sound",  vialglue_play_sound, METH_VARARGS, ""},
+    {"reload_page",  vialglue_reload_page, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 

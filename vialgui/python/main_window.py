@@ -369,6 +369,10 @@ class MainWindow(QMainWindow):
             Unlocker.unlock(self.autorefresh.current_device.keyboard)
             self.autorefresh.current_device.keyboard.reload()
 
+        # a pending "Keymap mirrored?" fix changed two keys before the keyboard restarted: put them
+        # back before the tabs below read the keymap
+        self.updates.restore_pending(self.autorefresh.current_device)
+
         for e in [self.layout_editor, self.keymap_editor, self.firmware_flasher, self.macro_recorder,
                   self.tap_dance, self.combos, self.key_override, self.alt_repeat_key,
                   self.qmk_settings, self.matrix_tester, self.rgb_configurator,
