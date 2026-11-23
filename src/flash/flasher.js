@@ -96,13 +96,15 @@ function captureConsole(run) {
 function setStep(key) {
     const u = els();
     u.flash_step.textContent = TEXT[key];
-    u.flash_keys.style.display = showKeys && KEY_STEPS.includes(key) ? "" : "none";
+    if (u.flash_keys) {     // absent if the browser still has the previous index.html cached
+        u.flash_keys.style.display = showKeys && KEY_STEPS.includes(key) ? "" : "none";
+    }
 }
 
 // Two small halves, the 3 outer top-row keys lit on each, "or" between: where to hold
 function drawKeys() {
     const u = els();
-    if (u.flash_keys.firstChild) {
+    if (!u.flash_keys || u.flash_keys.firstChild) {
         return;
     }
     const size = 16, gap = 3, stagger = [3, 3, 0, -2, 0, 1];
@@ -439,7 +441,9 @@ export async function startFlash(entry) {
     u.flash_log.textContent = "";
     showKeys = !!entry.chord;
     drawKeys();
-    u.flash_keys.style.display = "none";
+    if (u.flash_keys) {
+        u.flash_keys.style.display = "none";
+    }
     u.flash.style.display = "";
     showButtons(["flash_cancel"]);
 

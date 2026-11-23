@@ -118,6 +118,16 @@ def _primary(button):
     return button
 
 
+def _show_modal(dialog):
+    """How dialogs are shown on the web build (same as Keymap's reset/restore questions and About):
+    no parent, application-modal, show(). exec_() needs a nested event loop the web build does not
+    have ("compile with async support"), and a parented open() (window-modal) is drawn as an empty
+    frame there."""
+    dialog.setModal(True)
+    dialog.adjustSize()
+    dialog.show()
+
+
 def _centered_scroll(inner_layout):
     """Same framing as the Trackpad/OLED tabs: natural width, centred, scrollable."""
     content = QWidget()
@@ -638,18 +648,16 @@ class Updates(BasicEditor):
     def _on_mirror(self):
         if self.keyboard is None:
             return
-        # open(), never exec_(): the web build has no nested event loop (no Asyncify), so a blocking
-        # dialog aborts with "compile with async support"
-        self._dialog = MirrorFixDialog(self.keyboard, self.product, self.btn_mirror.window())
-        self._dialog.open()
+        self._dialog = MirrorFixDialog(self.keyboard, self.product)
+        _show_modal(self._dialog)
 
     def _on_update_now(self):
         fw = self._selected_firmware()
         if not fw or sys.platform != "emscripten" or self.keyboard is None:
             return
-        self._dialog = SaveLayoutCheck(self.keyboard, self.btn_update.window())
+        self._dialog = SaveLayoutCheck(self.keyboard)
         self._dialog.accepted.connect(lambda: self._start_flash(fw))
-        self._dialog.open()     # see _on_mirror: never exec_() on the web
+        _show_modal(self._dialog)
 
     def _start_flash(self, fw):
         import vialglue
