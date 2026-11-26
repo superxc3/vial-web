@@ -46,6 +46,9 @@ _DETECT_FROM = (5, 10)
 # (the "h" in e.g. 5.11hb only marks the Horizontal build)
 _CHORD_FROM = (5, 11, 0, "b")
 _MIRROR_FAMILIES = ("SoflePLUS2", "CornePLUS2")   # split boards whose halves can come up as the wrong hand
+# column of the two keys the mirror fix borrows: CornePLUS2 is often used as a 36-key board without the
+# outer column, so it takes Q and A (one column in); SoflePLUS2 keeps the outer ` and Esc
+_MIRROR_COLUMN = {"CornePLUS2": 1}
 
 # Batches whose half with the USB cable can come up as the wrong hand after an update (EE_HANDS)
 
@@ -229,7 +232,7 @@ class SaveLayoutCheck(QDialog):
 class MirrorFix:
     """Mostly older batches: after an update the half with the USB cable can think it is the right half
     (EE_HANDS handedness lost), so the left keys come out mirrored (Q types P). The fix puts
-    MAGIC_EE_HANDS_LEFT on the top-left key and QK_REBOOT on the key below it, on layer 0, at the
+    MAGIC_EE_HANDS_LEFT on a top-row key and QK_REBOOT on the key below it, on layer 0, at the
     left-half position AND its right-half mirror (while mirrored the left half reports the right
     half's rows). The original keycodes are kept in the app data dir and written back on the next
     connect, before the other tabs read the keymap."""
@@ -245,23 +248,23 @@ class MirrorFix:
         return os.path.join(directory, cls.FILE)
 
     @staticmethod
-    def positions(keyboard):
+    def positions(keyboard, col=0):
         """{(row, col): keycode} for the two marked keys and their mirrors, or None if the matrix is
         not split into two equal halves of rows (left rows first, outer column 0 on both)."""
         rows = keyboard.rows
         if rows < 4 or rows % 2:
             return None
         half = rows // 2
-        targets = {(0, 0): MirrorFix.SET_LEFT, (half, 0): MirrorFix.SET_LEFT,
-                   (1, 0): MirrorFix.REBOOT, (half + 1, 0): MirrorFix.REBOOT}
+        targets = {(0, col): MirrorFix.SET_LEFT, (half, col): MirrorFix.SET_LEFT,
+                   (1, col): MirrorFix.REBOOT, (half + 1, col): MirrorFix.REBOOT}
         for (r, c) in targets:
             if (0, r, c) not in keyboard.layout:
                 return None
         return targets
 
     @classmethod
-    def apply(cls, keyboard, product):
-        targets = cls.positions(keyboard)
+    def apply(cls, keyboard, product, col=0):
+        targets = cls.positions(keyboard, col)
         if targets is None:
             raise RuntimeError("unexpected matrix")
         pending = cls.load()
@@ -304,10 +307,11 @@ class MirrorFix:
 
 class MirrorFixDialog(QDialog):
 
-    def __init__(self, keyboard, product, parent=None):
+    def __init__(self, keyboard, product, col=0, parent=None):
         super().__init__(parent)
         self.keyboard = keyboard
         self.product = product
+        self.col = col
         self.applied = False
         self.setWindowTitle(tr("Updates", "Fix a mirrored keymap"))
         self.setFixedWidth(460)
@@ -319,7 +323,7 @@ class MirrorFixDialog(QDialog):
                                              "keyboard that the half with the cable is the left half.")))
         lay.addWidget(_wrapped(tr("Updates", "Make sure the USB cable is plugged into the LEFT half."), bold=True))
 
-        pic = MiniHalf({(0, 0): (_AMBER, "A"), (1, 0): (_GREEN, "B")})
+        pic = MiniHalf({(0, col): (_AMBER, "A"), (1, col): (_GREEN, "B")})
         lay.addWidget(pic, 0, Qt.AlignHCenter)
 
         self.lbl_steps = _wrapped(tr("Updates", "Click Set up keys: the page changes two keys of the left half for a "
@@ -342,18 +346,20 @@ class MirrorFixDialog(QDialog):
     def _go(self):
         if not self.applied:
             try:
-                MirrorFix.apply(self.keyboard, self.product)
+                MirrorFix.apply(self.keyboard, self.product, self.col)
             except Exception as e:
                 self.lbl_error.setText(tr("Updates", "Could not change the keys ({}). Reload the page and try "
                                                      "again.").format(e))
                 self.lbl_error.show()
                 return
             self.applied = True
+            where = tr("Updates", "top-left corner") if self.col == 0 else \
+                tr("Updates", "top row, one key in from the corner")
             self.lbl_steps.setText(tr("Updates",
-                                      "1.  Press key A (top-left corner) once: the keyboard now knows it is the left half.\n"
+                                      "1.  Press key A ({}) once: the keyboard now knows it is the left half.\n"
                                       "2.  Press key B (just below it) once: the keyboard restarts by itself.\n"
                                       "3.  Click Reconnect, then Start Vial. Keys A and B go back to normal "
-                                      "automatically."))
+                                      "automatically.").format(where))
             self.btn_cancel.setText(tr("Updates", "Undo and close"))
             self.btn_go.setText(tr("Updates", "Reconnect"))
             self.adjustSize()
@@ -612,7 +618,8 @@ class Updates(BasicEditor):
         self.btn_download.setEnabled(self.board is not None)
         mirror_board = self.auto_board or self.board
         self.btn_mirror.setVisible(bool(mirror_board) and mirror_board["family"] in _MIRROR_FAMILIES
-                                   and self.keyboard is not None and MirrorFix.positions(self.keyboard) is not None)
+                                   and self.keyboard is not None
+                                   and MirrorFix.positions(self.keyboard, self._mirror_col()) is not None)
         self.lbl_mirror_done.setVisible(self.mirror_restored)
         self.lbl_mirror_done.setText(tr("Updates", "✓ Mirror fix done: keys A and B are back to normal. Still "
                                                    "mirrored? Run Keymap mirrored? again."))
@@ -645,10 +652,14 @@ class Updates(BasicEditor):
         self.combo_board.blockSignals(False)
         self._refresh()
 
+    def _mirror_col(self):
+        board = self.auto_board or self.board
+        return _MIRROR_COLUMN.get(board["family"], 0) if board else 0
+
     def _on_mirror(self):
         if self.keyboard is None:
             return
-        self._dialog = MirrorFixDialog(self.keyboard, self.product)
+        self._dialog = MirrorFixDialog(self.keyboard, self.product, self._mirror_col())
         _show_modal(self._dialog)
 
     def _on_update_now(self):
