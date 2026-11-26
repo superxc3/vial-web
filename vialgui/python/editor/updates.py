@@ -6,7 +6,7 @@ instructions to flash it. The board and its version come from the USB product st
 announces (see the naming rule and PRODUCT_RE in vial-web/firmware/make-manifest.py — keep them in
 sync); the catalogue is firmware_manifest.json, preloaded by vial-web's build.
 
-Also hosts the "Keymap mirrored?" fix for SoflePLUS2 (mostly older batches): after an update the half with the
+Also hosts the "Keymap mirrored?" fix for SoflePLUS2 and CornePLUS2 (mostly older batches): after an update the half with the
 USB cable can come up as the wrong hand (EE_HANDS). The page cannot fire a keycode itself, so it puts
 MAGIC_EE_HANDS_LEFT and QK_REBOOT on two keys for the client to press, and puts the original keycodes
 back the next time the keyboard connects (see MirrorFix).
@@ -45,6 +45,7 @@ _DETECT_FROM = (5, 10)
 # SoflePLUS2 firmware enters update mode when the 3 outer top-row keys are held, from v5.11b on
 # (the "h" in e.g. 5.11hb only marks the Horizontal build)
 _CHORD_FROM = (5, 11, 0, "b")
+_MIRROR_FAMILIES = ("SoflePLUS2", "CornePLUS2")   # split boards whose halves can come up as the wrong hand
 
 # Batches whose half with the USB cable can come up as the wrong hand after an update (EE_HANDS)
 
@@ -80,7 +81,7 @@ _STEPS = """Both halves must run the same version. Update one half, then the oth
 
 If a half does not go into update mode by itself: unplug the cable, hold its top outer corner key (left half: `, right half: -) and plug the cable back in while holding it. On SoflePLUS2 v5.11b or newer the 3 top corner keys (` 1 2 or - 0 9) work too. Or double-press the reset button on the bottom of that half, about half a second apart.
 
-Keys mirrored after an update (pressing 1 types 0)? Use Keymap mirrored?.
+Keys mirrored after an update (pressing Q types P)? Use Keymap mirrored?.
 
 Without WebUSB (or if the update dialog cannot see the keyboard): Download .uf2, put the half into update mode by hand as above and copy the .uf2 onto the RPI-RP2 drive that appears."""
 
@@ -227,7 +228,7 @@ class SaveLayoutCheck(QDialog):
 
 class MirrorFix:
     """Mostly older batches: after an update the half with the USB cable can think it is the right half
-    (EE_HANDS handedness lost), so the left keys come out mirrored (1 types 0). The fix puts
+    (EE_HANDS handedness lost), so the left keys come out mirrored (Q types P). The fix puts
     MAGIC_EE_HANDS_LEFT on the top-left key and QK_REBOOT on the key below it, on layer 0, at the
     left-half position AND its right-half mirror (while mirrored the left half reports the right
     half's rows). The original keycodes are kept in the app data dir and written back on the next
@@ -314,7 +315,7 @@ class MirrorFixDialog(QDialog):
         lay.setSpacing(10)
         lay.addWidget(_wrapped(tr("Updates", "Fix a mirrored keymap"), bold=True))
         lay.addWidget(_wrapped(tr("Updates", "After an update the keymap can come out mirrored (mostly on older batches) when "
-                                             "the USB cable is in the left half (pressing 1 types 0). This tells the "
+                                             "the USB cable is in the left half (pressing Q types P). This tells the "
                                              "keyboard that the half with the cable is the left half.")))
         lay.addWidget(_wrapped(tr("Updates", "Make sure the USB cable is plugged into the LEFT half."), bold=True))
 
@@ -460,7 +461,7 @@ class Updates(BasicEditor):
         self.btn_changelog.clicked.connect(self._on_changelog)
         self.btn_mirror = QPushButton(tr("Updates", "Keymap mirrored?"))
         self.btn_mirror.setToolTip(tr("Updates", "Keys come out mirrored after an update "
-                                                 "(pressing 1 types 0)? Fix it here."))
+                                                 "(pressing Q types P)? Fix it here."))
         self.btn_mirror.clicked.connect(self._on_mirror)
         self.btn_troubleshoot = QPushButton()
         self.btn_troubleshoot.clicked.connect(self._on_troubleshoot)
@@ -610,7 +611,7 @@ class Updates(BasicEditor):
         self.btn_update.setEnabled(self.board is not None)
         self.btn_download.setEnabled(self.board is not None)
         mirror_board = self.auto_board or self.board
-        self.btn_mirror.setVisible(bool(mirror_board) and mirror_board["family"] == "SoflePLUS2"
+        self.btn_mirror.setVisible(bool(mirror_board) and mirror_board["family"] in _MIRROR_FAMILIES
                                    and self.keyboard is not None and MirrorFix.positions(self.keyboard) is not None)
         self.lbl_mirror_done.setVisible(self.mirror_restored)
         self.lbl_mirror_done.setText(tr("Updates", "✓ Mirror fix done: keys A and B are back to normal. Still "
